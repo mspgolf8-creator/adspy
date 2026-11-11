@@ -1,0 +1,6 @@
+.next
+.next-app
+logs
+node_modules
+.env*
+!.env.example

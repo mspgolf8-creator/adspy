@@ -4,7 +4,7 @@ import { SetupNotice } from "../setup-notice";
 import { JobButtons } from "./job-buttons";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 800;
+export const maxDuration = 300; // maximum du plan gratuit Vercel
 
 const dt = new Intl.DateTimeFormat("fr-CA", { dateStyle: "short", timeStyle: "short" });
 
