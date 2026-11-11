@@ -8,6 +8,7 @@ import { CategorySelect } from "./category-select";
 export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 48;
+const HIDDEN_IN_ALL = "Livres, jeux & apps";
 const SORTS = {
   score: { label: "Score gagnante", column: "winner_score" },
   days: { label: "Jours actifs", column: "days_running" },
@@ -41,6 +42,8 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
   else if (!sp.all) query = query.eq("is_active", true);
   if (sp.cat === "Non classée") query = query.is("category", null);
   else if (sp.cat) query = query.eq("category", sp.cat);
+  // « Toutes » = les pubs de produits : les romans / apps restent dans leur propre catégorie
+  else if (!sp.saved) query = query.or(`category.is.null,category.neq."${HIDDEN_IN_ALL}"`);
   if (sp.angle) query = query.eq("angle", sp.angle);
   if (minDays) query = query.gte("days_running", minDays);
   if (sp.q) query = query.textSearch("search", sp.q, { type: "websearch", config: "simple" });
@@ -66,7 +69,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
         >
           Toutes
         </Link>
-        {(cats ?? []).map((c) => (
+        {[...(cats ?? [])]
+          .sort((a, b) => Number(a.category === HIDDEN_IN_ALL) - Number(b.category === HIDDEN_IN_ALL))
+          .map((c) => (
           <Link
             key={c.category}
             href={href(sp, { cat: c.category })}
