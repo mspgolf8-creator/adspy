@@ -20,12 +20,24 @@ function toRow(ad: MetaAd, now: string) {
     publisher_platforms: ad.publisher_platforms ?? [],
     languages: ad.languages ?? [],
     eu_total_reach: ad.eu_total_reach ?? null,
+    countries: countriesOf(ad),
     ad_creation_time: ad.ad_creation_time ?? null,
     delivery_start: ad.ad_delivery_start_time ?? null,
     delivery_stop: ad.ad_delivery_stop_time ?? null,
     is_active: !ad.ad_delivery_stop_time || new Date(ad.ad_delivery_stop_time) > new Date(now),
     last_seen_at: now,
   };
+}
+
+/** Pays où la pub a été vue, du plus gros au plus petit (codes ISO : FR, DE…). */
+function countriesOf(ad: MetaAd): string[] {
+  const total = (rows: Record<string, number | string>[] = []) =>
+    rows.reduce((sum, r) => sum + Object.values(r).reduce<number>((s, v) => s + (typeof v === "number" ? v : 0), 0), 0);
+  return (ad.age_country_gender_reach_breakdown ?? [])
+    .map((c) => ({ code: c.country, n: total(c.age_gender_breakdowns) }))
+    .filter((c) => c.code && c.n > 0)
+    .sort((a, b) => b.n - a.n)
+    .map((c) => c.code);
 }
 
 /** Sauvegarde un lot de pubs en gardant les mots-clés déjà associés. */

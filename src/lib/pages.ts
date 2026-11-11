@@ -1,0 +1,173 @@
+/**
+ * Type de page de destination : le robot récupère le lien de la pub (aperçu officiel),
+ * ouvre la page du marchand et la classe par règles (gratuit).
+ */
+import { chromium, type Page } from "playwright";
+import { db } from "./supabase";
+import { metaConfig } from "./meta";
+import { errMsg } from "./errors";
+import { PAGE_TYPES } from "./categories";
+
+type Log = (msg: string) => void;
+
+
+/** Le vrai lien derrière l'aperçu Meta (l.facebook.com/l.php?u=…). */
+export async function landingFromSnapshot(page: Page): Promise<string | null> {
+  return page.evaluate(() => {
+    for (const a of document.querySelectorAll<HTMLAnchorElement>("a[href]")) {
+      try {
+        const u = new URL(a.href);
+        if (u.hostname.startsWith("l.facebook.com") || u.hostname.startsWith("lm.facebook.com")) {
+          const target = u.searchParams.get("u");
+          if (target) return target;
+        } else if (!/facebook\.com|fbcdn|instagram\.com|meta\.com/.test(u.hostname) && u.protocol.startsWith("http")) {
+          return u.href;
+        }
+      } catch {}
+    }
+    return null;
+  });
+}
+
+type Signals = {
+  path: string;
+  title: string;
+  words: number;
+  h: string[];
+  addToCart: boolean;
+  productSchema: boolean;
+  emailInputs: number;
+  formFields: number;
+  videos: number;
+  numberedHeads: number;
+  productLinks: number;
+  quizHints: boolean;
+  byline: boolean;
+};
+
+async function readSignals(page: Page): Promise<Signals> {
+  return page.evaluate(() => {
+    const text = document.body?.innerText ?? "";
+    const h = [...document.querySelectorAll("h1, h2, h3")].map((e) => (e.textContent ?? "").trim()).filter(Boolean).slice(0, 40);
+    const buttons = [...document.querySelectorAll("button, input[type=submit], a")].map((e) =>
+      ((e as HTMLElement).innerText || (e as HTMLInputElement).value || "").toLowerCase(),
+    );
+    const ld = [...document.querySelectorAll('script[type="application/ld+json"]')].map((s) => s.textContent ?? "").join(" ");
+    return {
+      path: location.pathname.toLowerCase(),
+      title: document.title,
+      words: text.split(/\s+/).length,
+      h,
+      addToCart: buttons.some((b) =>
+        /add to (cart|bag)|ajouter au panier|in den warenkorb|in winkelwagen|añadir al carrito|aggiungi al carrello|buy now|acheter maintenant|jetzt kaufen/.test(b),
+      ),
+      productSchema: /"@type"\s*:\s*"Product"/i.test(ld) || Boolean(document.querySelector('meta[property="og:type"][content="product"]')),
+      emailInputs: document.querySelectorAll('input[type=email], input[name*=email i]').length,
+      formFields: document.querySelectorAll("form input:not([type=hidden]), form select").length,
+      videos:
+        document.querySelectorAll("video").length +
+        document.querySelectorAll('iframe[src*="youtube"], iframe[src*="vimeo"], iframe[src*="wistia"], iframe[src*="vidalytics"], iframe[src*="vturb"], [class*="vidalytics"], [id*="vidalytics"], [class*="wistia"]').length,
+      numberedHeads: h.filter((t) => /^(#?\d{1,2}[.):\-]|n[°o]\s?\d)/i.test(t)).length,
+      productLinks: document.querySelectorAll('a[href*="/products/"], a[href*="/product/"]').length,
+      quizHints: /quiz|question \d|step \d of|étape \d|frage \d/i.test(text.slice(0, 3000)) || Boolean(document.querySelector('[class*="quiz" i], [id*="quiz" i]')),
+      byline: /\b(by|par|von|door)\s+[A-Z][a-z]+ [A-Z][a-z]+|updated|mis à jour|aktualisiert|min read|lecture/i.test(text.slice(0, 2500)),
+    };
+  });
+}
+
+export function classifyPage(s: Signals): (typeof PAGE_TYPES)[number] {
+  const p = s.path;
+  const home = p === "/" || p === "" || /^\/(en|fr|de|nl|es|it|[a-z]{2}-[a-z]{2})\/?$/.test(p);
+  if (/\/(cart|checkout|panier|warenkorb)/.test(p)) return "Panier / checkout";
+  if (s.quizHints && (/quiz/.test(p) || s.words < 600)) return "Quiz";
+  if (/\/(products?|produits?|produkt|p)\//.test(p) || (s.productSchema && s.addToCart)) return "Page produit";
+  if (/\/(collections?|categor(y|ies)|catalog)/.test(p)) return "Collection";
+  if (home) return "Page d'accueil";
+  if (/\/(blogs?|articles?|news|journal|magazine)\//.test(p) && !s.addToCart) {
+    if (s.numberedHeads >= 3) return "Listicle";
+    return "Article de blog";
+  }
+  if (s.numberedHeads >= 3 && s.words > 500 && s.productLinks < 8 && !s.addToCart) return "Listicle";
+  if (s.videos >= 1 && s.words < 700 && !s.addToCart) return "Page VSL";
+  if (s.emailInputs >= 1 && s.formFields <= 4 && s.words < 600 && !s.addToCart && s.productLinks < 3) return "Capture de leads";
+  // Advertorial : long texte de vente hors du blog (souvent /pages/… sur Shopify)
+  if (s.words > 800 && s.productLinks < 3) return s.byline && !/\/pages\//.test(p) ? "Article de blog" : "Advertorial";
+  if (s.addToCart) return "Page produit";
+  if (s.productLinks >= 8) return "Collection";
+  if (s.words > 300) return "Landing page";
+  return "Autre";
+}
+
+export async function fetchPageTypes(log: Log = console.log) {
+  const limit = Number(process.env.PAGE_LIMIT || 150);
+  const { token } = metaConfig();
+
+  const { data, error } = await db()
+    .from("ads_scored")
+    .select("id, landing_url")
+    .eq("is_active", true)
+    .is("page_type_tried_at", null)
+    .or('category.is.null,category.neq."Livres, jeux & apps"') // les romans / apps : pas utile
+    .order("winner_score", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  const rows = (data ?? []) as { id: string; landing_url: string | null }[];
+  if (!rows.length) return log("✓ types de page : rien de nouveau");
+
+  const browser = await chromium.launch();
+  const ctx = await browser.newContext({
+    viewport: { width: 1280, height: 900 },
+    locale: "fr-FR",
+    userAgent:
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36",
+  });
+  const page = await ctx.newPage();
+  const cache = new Map<string, { url: string; type: string }>(); // même page pour plusieurs pubs
+  let ok = 0;
+  let none = 0;
+  let failed = 0;
+  try {
+    for (const row of rows) {
+      const now = new Date().toISOString();
+      try {
+        let link = row.landing_url;
+        if (!link) {
+          await page.goto(`https://www.facebook.com/ads/archive/render_ad/?id=${row.id}&access_token=${token}`, {
+            waitUntil: "networkidle",
+            timeout: 30000,
+          }).catch(() => {});
+          if (/login|checkpoint/.test(page.url())) throw new Error("Meta demande une connexion : arrêt");
+          link = await landingFromSnapshot(page);
+        }
+        if (!link) {
+          none++;
+          await db().from("ads").update({ page_type_tried_at: now }).eq("id", row.id);
+          continue;
+        }
+        const key = link.split("?")[0];
+        let hit = cache.get(key);
+        if (!hit) {
+          await page.goto(link, { waitUntil: "domcontentloaded", timeout: 25000 });
+          await page.waitForTimeout(2500); // laisse les pages JS (Shopify, funnels) s'afficher
+          const signals = await readSignals(page);
+          hit = { url: page.url(), type: classifyPage(signals) };
+          cache.set(key, hit);
+        }
+        await db().from("ads").update({ landing_url: hit.url, page_type: hit.type, page_type_tried_at: now }).eq("id", row.id);
+        ok++;
+      } catch (e) {
+        failed++;
+        const msg = errMsg(e);
+        await db().from("ads").update({ page_type_tried_at: now }).eq("id", row.id);
+        if (/connexion : arrêt/.test(msg)) {
+          log(`✗ ${msg}`);
+          break;
+        }
+      }
+    }
+  } finally {
+    await browser.close();
+  }
+  log(`✓ types de page : ${ok} classées, ${none} sans lien, ${failed} pages inaccessibles`);
+}
+export const readSignalsForTest = readSignals;

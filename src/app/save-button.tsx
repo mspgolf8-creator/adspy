@@ -2,6 +2,7 @@
 
 import { useOptimistic, useTransition } from "react";
 import { toggleSaved } from "./actions";
+import { IconBookmark } from "./icons";
 
 export function SaveButton({ id, saved }: { id: string; saved: boolean }) {
   const [optimistic, setOptimistic] = useOptimistic(saved);
@@ -16,11 +17,9 @@ export function SaveButton({ id, saved }: { id: string; saved: boolean }) {
           await toggleSaved(id, !optimistic);
         })
       }
-      className={`rounded-md px-2 py-1 text-sm transition ${
-        optimistic ? "bg-blue-100 text-blue-700" : "text-slate-500 hover:bg-slate-200 hover:text-slate-800"
-      }`}
+      className={`rounded-md p-1 transition ${optimistic ? "text-blue-400" : "text-zinc-400 hover:text-white"}`}
     >
-      {optimistic ? "★" : "☆"}
+      <IconBookmark className={`h-[18px] w-[18px] ${optimistic ? "fill-current" : ""}`} />
     </button>
   );
 }

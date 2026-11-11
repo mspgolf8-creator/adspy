@@ -7,6 +7,7 @@ import { chromium, type Page } from "playwright";
 import { db } from "./supabase";
 import { metaConfig } from "./meta";
 import { errMsg } from "./errors";
+import { landingFromSnapshot } from "./pages";
 
 const BUCKET = "ad-media";
 type Log = (msg: string) => void;
@@ -26,13 +27,14 @@ async function capture(page: Page, adId: string, token: string) {
     els[0].el.setAttribute("data-adspy", "1");
     return els[0].el.tagName === "VIDEO" ? "video" : "image";
   });
-  if (!target) return null;
+  const landing = await landingFromSnapshot(page);
+  if (!target) return { landing, kind: null, jpeg: null };
 
   const el = page.locator("[data-adspy='1']");
   if (target === "image") await el.evaluate((img: HTMLImageElement) => img.decode?.().catch(() => {}));
   else await page.waitForTimeout(1500); // laisser l'aperçu de la vidéo s'afficher
   const jpeg = await el.screenshot({ type: "jpeg", quality: 70, timeout: 10000 });
-  return { kind: target, jpeg };
+  return { landing, kind: target, jpeg };
 }
 
 export async function fetchMedia(log: Log = console.log) {
@@ -60,15 +62,15 @@ export async function fetchMedia(log: Log = console.log) {
       try {
         const shot = await capture(page, id, token);
         const now = new Date().toISOString();
-        if (!shot) {
+        if (!shot.jpeg) {
           none++;
-          await db().from("ads").update({ media_tried_at: now }).eq("id", id);
+          await db().from("ads").update({ media_tried_at: now, landing_url: shot.landing }).eq("id", id);
         } else {
           const path = `${id}.jpg`;
           const up = await db().storage.from(BUCKET).upload(path, shot.jpeg, { contentType: "image/jpeg", upsert: true });
           if (up.error) throw up.error;
           const media_url = db().storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
-          await db().from("ads").update({ media_url, media_kind: shot.kind, media_tried_at: now }).eq("id", id);
+          await db().from("ads").update({ media_url, media_kind: shot.kind, media_tried_at: now, landing_url: shot.landing }).eq("id", id);
           ok++;
         }
       } catch (e) {

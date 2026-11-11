@@ -32,3 +32,19 @@ export const ANGLES = [
   "Histoire",
   "Autre",
 ] as const;
+
+/** Types de page de destination (filtre « Type de page »). */
+export const PAGE_TYPES = [
+  "Page produit",
+  "Collection",
+  "Listicle",
+  "Advertorial",
+  "Capture de leads",
+  "Page VSL",
+  "Quiz",
+  "Page d'accueil",
+  "Article de blog",
+  "Panier / checkout",
+  "Landing page",
+  "Autre",
+] as const;

@@ -47,10 +47,16 @@ export type AdRow = {
   media_url: string | null;
   media_kind: "image" | "video" | null;
   media_tried_at: string | null;
+  countries: string[];
+  landing_url: string | null;
+  page_type: string | null;
+  page_active_ads: number;
+  creative_count: number;
+  brand_rank: number | null;
+  stars: number | null;
 };
 
 export type ScoredAd = AdRow & {
   days_running: number;
-  page_active_ads: number;
   winner_score: number;
 };

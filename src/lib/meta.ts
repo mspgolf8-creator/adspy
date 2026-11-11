@@ -17,6 +17,7 @@ const FIELDS = [
   "publisher_platforms",
   "languages",
   "eu_total_reach",
+  "age_country_gender_reach_breakdown",
 ].join(",");
 
 export type MetaAd = {
@@ -33,6 +34,7 @@ export type MetaAd = {
   publisher_platforms?: string[];
   languages?: string[];
   eu_total_reach?: number;
+  age_country_gender_reach_breakdown?: { country: string; age_gender_breakdowns?: Record<string, number | string>[] }[];
 };
 
 type MetaPage = {

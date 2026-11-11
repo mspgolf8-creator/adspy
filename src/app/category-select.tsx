@@ -13,11 +13,11 @@ export function CategorySelect({ id, category, manual }: { id: string; category:
       disabled={pending}
       title={manual ? "Catégorie corrigée à la main" : "Mauvaise catégorie ? Corrige-la ici"}
       onChange={(e) => start(() => setCategory(id, e.target.value))}
-      className="cursor-pointer appearance-none rounded bg-blue-50 px-2 py-0.5 text-blue-700 outline-none hover:bg-blue-100 disabled:opacity-50"
+      className="cursor-pointer appearance-none rounded-md bg-blue-500/15 px-2 py-0.5 text-blue-300 outline-none hover:bg-blue-500/25 disabled:opacity-50"
     >
       {!category && <option value="">Non classée</option>}
       {CATEGORIES.map((c) => (
-        <option key={c} value={c} className="bg-slate-100 text-slate-900">
+        <option key={c} value={c} className="bg-[#1c1c22] text-zinc-100">
           {c}
           {manual && c === category ? " ✓" : ""}
         </option>

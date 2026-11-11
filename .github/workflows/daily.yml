@@ -12,7 +12,7 @@ concurrency:
 jobs:
   collecte:
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -33,3 +33,4 @@ jobs:
           META_MAX_PER_TERM: "500"
           CLASSIFY_MODE: rules
           MEDIA_LIMIT: "250"
+          PAGE_LIMIT: "150"
