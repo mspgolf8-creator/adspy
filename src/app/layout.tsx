@@ -10,12 +10,16 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="fr">
+    <html lang="fr" suppressHydrationWarning>
+      <head>
+        {/* Applique la largeur de la barre avant l'affichage (pas de saut) */}
+        <script dangerouslySetInnerHTML={{ __html: `try{if(localStorage.getItem("adspy-sidebar")==="small")document.documentElement.dataset.sidebar="small"}catch(e){}` }} />
+      </head>
       <body className="min-h-screen bg-[#0d0d10] text-zinc-100 antialiased">
         <Suspense>
           <Sidebar />
         </Suspense>
-        <main className="px-4 py-6 lg:ml-60 lg:px-6">{children}</main>
+        <main className="px-4 py-6 lg:ml-[var(--sb)] transition-[margin] lg:px-6">{children}</main>
       </body>
     </html>
   );

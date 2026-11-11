@@ -80,8 +80,21 @@ const TECH_RULES: [string, string, RegExp][] = [
 ];
 
 async function detectTech(page: Page): Promise<string[]> {
-  const html = (await page.content()).toLowerCase();
-  return TECH_RULES.filter(([, , re]) => re.test(html)).map(([cat, name]) => `${cat}|${name}`);
+  // Seulement les fichiers vraiment chargés (scripts, styles, iframes) + le pixel Meta en ligne :
+  // le texte brut de la page cite souvent des apps qu'elle n'utilise pas.
+  const haystack = (
+    await page.evaluate(() => {
+      const srcs = [...document.querySelectorAll<HTMLScriptElement | HTMLIFrameElement>("script[src], iframe[src]")].map((e) => e.src);
+      const links = [...document.querySelectorAll<HTMLLinkElement>("link[href]")].map((e) => e.href);
+      const res = performance.getEntriesByType("resource").map((r) => r.name);
+      const inline = [...document.querySelectorAll("script:not([src])")].map((e) => (e.textContent ?? "").slice(0, 3000)).join(" ");
+      const hasFbq = /fbq\(\s*['"]init/.test(inline) ? "connect.facebook.net/x/fbevents" : "";
+      const meta = (window as unknown as { Shopify?: unknown }).Shopify ? "cdn.shopify.com" : "";
+      const body = document.body?.className ?? "";
+      return [...srcs, ...links, ...res, hasFbq, meta, body].join(" ");
+    })
+  ).toLowerCase();
+  return TECH_RULES.filter(([, , re]) => re.test(haystack)).map(([cat, name]) => `${cat}|${name}`);
 }
 
 type Signals = {
@@ -124,7 +137,7 @@ async function readSignals(page: Page): Promise<Signals> {
         document.querySelectorAll('iframe[src*="youtube"], iframe[src*="vimeo"], iframe[src*="wistia"], iframe[src*="vidalytics"], iframe[src*="vturb"], [class*="vidalytics"], [id*="vidalytics"], [class*="wistia"]').length,
       numberedHeads: h.filter((t) => /^(#?\d{1,2}[.):\-]|n[°o]\s?\d)/i.test(t)).length,
       productLinks: document.querySelectorAll('a[href*="/products/"], a[href*="/product/"]').length,
-      quizHints: /quiz|question \d|step \d of|étape \d|frage \d/i.test(text.slice(0, 3000)) || Boolean(document.querySelector('[class*="quiz" i], [id*="quiz" i]')),
+      quizHints: /question \d+ (of|sur|von)|step \d+ of|étape \d+ sur|take (the|our) quiz|faites le quiz/i.test(text.slice(0, 3000)) || Boolean(document.querySelector('form[class*="quiz" i], [id^="quiz" i]')),
       byline: /\b(by|par|von|door)\s+[A-Z][a-z]+ [A-Z][a-z]+|updated|mis à jour|aktualisiert|min read|lecture/i.test(text.slice(0, 2500)),
     };
   });
@@ -134,7 +147,7 @@ export function classifyPage(s: Signals): (typeof PAGE_TYPES)[number] {
   const p = s.path;
   const home = p === "/" || p === "" || /^\/(en|fr|de|nl|es|it|[a-z]{2}-[a-z]{2})\/?$/.test(p);
   if (/\/(cart|checkout|panier|warenkorb)/.test(p)) return "Panier / checkout";
-  if (s.quizHints && (/quiz/.test(p) || s.words < 600)) return "Quiz";
+  if (/quiz/.test(p) || (s.quizHints && s.words < 600 && !s.addToCart)) return "Quiz";
   if (/\/(products?|produits?|produkt|p)\//.test(p) || (s.productSchema && s.addToCart)) return "Page produit";
   if (/\/(collections?|categor(y|ies)|catalog)/.test(p)) return "Collection";
   if (home) return "Page d'accueil";

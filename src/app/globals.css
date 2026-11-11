@@ -3,3 +3,7 @@
 :root {
   color-scheme: dark;
 }
+
+/* Largeur de la barre bleue (réduite = icônes seulement) */
+:root { --sb: 15rem; }
+:root[data-sidebar="small"] { --sb: 4.5rem; }
