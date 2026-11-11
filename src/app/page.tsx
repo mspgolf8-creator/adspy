@@ -4,6 +4,7 @@ import { PAGE_TYPES } from "@/lib/categories";
 import { hrefWith, list, num, SORT_COLUMNS, SORTS, type Search, type SortKey } from "@/lib/filters";
 import { SetupNotice } from "./setup-notice";
 import { AdCard } from "./ad-card";
+import { AdDetails } from "./ad-details";
 import { FilterBar, type Facets } from "./filter-bar";
 import { SearchBar, SortSelect } from "./search-bar";
 import { IconBolt, IconExplore } from "./icons";
@@ -79,6 +80,21 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
     sp.brand ? db().from("ads").select("page_name").eq("page_id", sp.brand).limit(1).maybeSingle() : Promise.resolve({ data: null }),
   ]);
   const ads = (data ?? []) as ScoredAd[];
+  const detailsHref = (id: string) => hrefWith(sp, { ad: id, page: sp.page });
+
+  // Fenêtre « Détails de la pub » (?ad=ID) + pubs similaires (même niche, autres marques)
+  let selected: ScoredAd | null = null;
+  let similar: ScoredAd[] = [];
+  if (sp.ad) {
+    const { data: one } = await db().from("ads_scored").select("*").eq("id", sp.ad).maybeSingle();
+    selected = (one as ScoredAd) ?? null;
+    if (selected?.category) {
+      let sim = db().from("ads_scored").select("*").eq("is_active", true).eq("category", selected.category).neq("id", selected.id);
+      if (selected.page_id) sim = sim.neq("page_id", selected.page_id);
+      const { data: s } = await sim.order("eu_total_reach", { ascending: false, nullsFirst: false }).limit(4);
+      similar = (s ?? []) as ScoredAd[];
+    }
+  }
   const total = count ?? 0;
   const pages = Math.ceil(total / PAGE_SIZE);
 
@@ -132,7 +148,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
       </div>
 
       <div className="grid gap-4 min-[640px]:grid-cols-2 min-[1024px]:grid-cols-3 min-[1280px]:grid-cols-4 min-[1400px]:grid-cols-5">
-        {ads.map((ad) => <AdCard key={ad.id} ad={ad} />)}
+        {ads.map((ad) => <AdCard key={ad.id} ad={ad} detailsHref={detailsHref(ad.id)} />)}
       </div>
 
       {total === 0 && !error && (
@@ -147,6 +163,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
           <span className="text-zinc-500">Page {page} / {pages}</span>
           {page < pages && <Link href={hrefWith(sp, { page: String(page + 1) })} className="rounded-lg bg-[#141418] px-3 py-1.5 text-zinc-200 hover:bg-[#1d1d23]">Suivant →</Link>}
         </div>
+      )}
+      {selected && (
+        <AdDetails ad={selected} similar={similar} detailsHref={detailsHref}
+          closeHref={hrefWith(sp, { ad: undefined, page: sp.page })} />
       )}
     </div>
   );

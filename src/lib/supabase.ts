@@ -54,6 +54,10 @@ export type AdRow = {
   creative_count: number;
   brand_rank: number | null;
   stars: number | null;
+  technologies?: string[];
+  page_type_tried_at?: string | null;
+  video_url?: string | null;
+  video_expires_at?: string | null;
 };
 
 export type ScoredAd = AdRow & {

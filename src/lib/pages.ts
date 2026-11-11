@@ -29,6 +29,61 @@ export async function landingFromSnapshot(page: Page): Promise<string | null> {
   });
 }
 
+/** Technologies détectées dans le code de la page : « Catégorie|Nom ». */
+const TECH_RULES: [string, string, RegExp][] = [
+  ["E-commerce", "Shopify", /cdn\.shopify\.com|shopify\.theme|myshopify\.com/],
+  ["E-commerce", "WooCommerce", /woocommerce/],
+  ["E-commerce", "Magento", /mage\/cookies|magento/],
+  ["E-commerce", "BigCommerce", /bigcommerce\.com/],
+  ["E-commerce", "PrestaShop", /prestashop/],
+  ["E-commerce", "Shopware", /shopware/],
+  ["CMS", "WordPress", /wp-content|wp-includes/],
+  ["CMS", "Wix", /wixstatic\.com|static\.parastorage\.com/],
+  ["CMS", "Squarespace", /squarespace\.com|static1\.squarespace/],
+  ["CMS", "Webflow", /webflow\.(com|io)|data-wf-page/],
+  ["Funnel / landing", "ClickFunnels", /clickfunnels|cf-assets/],
+  ["Funnel / landing", "Funnelish", /funnelish/],
+  ["Funnel / landing", "GemPages", /gempages|gem-page/],
+  ["Funnel / landing", "PageFly", /pagefly/],
+  ["Funnel / landing", "Replo", /replo/],
+  ["Funnel / landing", "Shogun", /getshogun|shogun-/],
+  ["Funnel / landing", "Zipify Pages", /zipify/],
+  ["Funnel / landing", "Unbounce", /unbounce/],
+  ["Funnel / landing", "Instapage", /instapage/],
+  ["Funnel / landing", "Leadpages", /leadpages/],
+  ["Funnel / landing", "GoHighLevel", /leadconnectorhq|msgsndr|highlevel/],
+  ["Funnel / landing", "Systeme.io", /systeme\.io/],
+  ["Email / SMS", "Klaviyo", /klaviyo/],
+  ["Email / SMS", "Mailchimp", /mailchimp|chimpstatic/],
+  ["Email / SMS", "Omnisend", /omnisend/],
+  ["Email / SMS", "Attentive", /attn\.tv|attentivemobile/],
+  ["Email / SMS", "Postscript", /postscript\.io/],
+  ["Avis clients", "Judge.me", /judge\.me/],
+  ["Avis clients", "Loox", /loox\.io/],
+  ["Avis clients", "Okendo", /okendo/],
+  ["Avis clients", "Yotpo", /yotpo/],
+  ["Avis clients", "Trustpilot", /trustpilot/],
+  ["Avis clients", "Stamped", /stamped\.io/],
+  ["Suivi / pixels", "Meta Pixel", /connect\.facebook\.net\/[^"']*fbevents|fbq\(/],
+  ["Suivi / pixels", "TikTok Pixel", /analytics\.tiktok\.com/],
+  ["Suivi / pixels", "Google Analytics", /googletagmanager\.com|google-analytics\.com/],
+  ["Suivi / pixels", "Hotjar", /hotjar/],
+  ["Suivi / pixels", "Triple Whale", /triplewhale|triplepixel/],
+  ["Paiement", "Klarna", /klarna/],
+  ["Paiement", "Afterpay", /afterpay|clearpay/],
+  ["Paiement", "PayPal", /paypal\.com\/sdk|paypalobjects/],
+  ["Paiement", "Stripe", /js\.stripe\.com/],
+  ["Vidéo", "Vidalytics", /vidalytics/],
+  ["Vidéo", "Wistia", /wistia/],
+  ["Vidéo", "VTurb", /vturb|converteai/],
+  ["Vidéo", "YouTube", /youtube\.com\/embed|youtube-nocookie/],
+];
+
+async function detectTech(page: Page): Promise<string[]> {
+  const html = (await page.content()).toLowerCase();
+  return TECH_RULES.filter(([, , re]) => re.test(html)).map(([cat, name]) => `${cat}|${name}`);
+}
+
 type Signals = {
   path: string;
   title: string;
@@ -122,7 +177,7 @@ export async function fetchPageTypes(log: Log = console.log) {
       "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36",
   });
   const page = await ctx.newPage();
-  const cache = new Map<string, { url: string; type: string }>(); // même page pour plusieurs pubs
+  const cache = new Map<string, { url: string; type: string; tech: string[] }>(); // même page pour plusieurs pubs
   let ok = 0;
   let none = 0;
   let failed = 0;
@@ -150,10 +205,10 @@ export async function fetchPageTypes(log: Log = console.log) {
           await page.goto(link, { waitUntil: "domcontentloaded", timeout: 25000 });
           await page.waitForTimeout(2500); // laisse les pages JS (Shopify, funnels) s'afficher
           const signals = await readSignals(page);
-          hit = { url: page.url(), type: classifyPage(signals) };
+          hit = { url: page.url(), type: classifyPage(signals), tech: await detectTech(page).catch(() => []) };
           cache.set(key, hit);
         }
-        await db().from("ads").update({ landing_url: hit.url, page_type: hit.type, page_type_tried_at: now }).eq("id", row.id);
+        await db().from("ads").update({ landing_url: hit.url, page_type: hit.type, technologies: hit.tech, page_type_tried_at: now }).eq("id", row.id);
         ok++;
       } catch (e) {
         failed++;

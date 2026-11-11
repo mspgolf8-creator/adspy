@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ScoredAd } from "@/lib/supabase";
-import { IconExternal, IconEye, IconLayers, IconPage, IconPlay, IconPulse } from "./icons";
+import { IconExternal, IconEye, IconLayers, IconPage, IconPulse } from "./icons";
+import { MediaPlayer } from "./media-player";
 import { Stars } from "./stars";
 import { SaveButton } from "./save-button";
 import { CategorySelect } from "./category-select";
@@ -29,7 +30,7 @@ function domainOf(ad: ScoredAd) {
   return ad.link_captions[0] ?? null;
 }
 
-export function AdCard({ ad }: { ad: ScoredAd }) {
+export function AdCard({ ad, detailsHref }: { ad: ScoredAd; detailsHref: string }) {
   const library = `https://www.facebook.com/ads/library/?id=${ad.id}`;
   const name = ad.page_name ?? "Page inconnue";
   const start = ad.delivery_start ? fmtDay(ad.delivery_start) : "?";
@@ -62,22 +63,9 @@ export function AdCard({ ad }: { ad: ScoredAd }) {
         <SaveButton id={ad.id} saved={ad.saved} />
       </header>
 
-      {/* Visuel */}
-      <a href={library} target="_blank" rel="noreferrer" className="relative block bg-black">
-        {ad.media_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={ad.media_url} alt={name} loading="lazy" className="aspect-[4/5] w-full object-contain object-center" />
-        ) : (
-          <div className="grid aspect-[4/5] w-full place-items-center text-xs text-zinc-500">
-            {ad.media_tried_at ? "Pas de visuel" : "Visuel à venir"}
-          </div>
-        )}
-        {ad.media_kind === "video" && (
-          <span className="absolute left-1/2 top-1/2 grid h-14 w-14 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-blue-600 text-white shadow-lg shadow-black/40">
-            <IconPlay className="ml-0.5 h-7 w-7" />
-          </span>
-        )}
-      </a>
+      {/* Visuel : clic = détails, ▶ = lecture sur place */}
+      <MediaPlayer mediaUrl={ad.media_url} kind={ad.media_kind} videoUrl={ad.video_url} videoExpires={ad.video_expires_at}
+        library={library} detailsHref={detailsHref} alt={name} tried={Boolean(ad.media_tried_at)} />
 
       {/* Signaux */}
       <div className="flex flex-wrap items-center gap-1.5 px-4 pt-3 text-xs font-semibold">
@@ -114,9 +102,9 @@ export function AdCard({ ad }: { ad: ScoredAd }) {
             <a href={ad.landing_url} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate hover:text-white">{domain}</a>
           ) : <span className="min-w-0 flex-1 truncate">{domain}</span>
         ) : <span className="flex-1" />}
-        <a href={library} target="_blank" rel="noreferrer" className="flex shrink-0 items-center gap-1 font-semibold text-zinc-200 hover:text-white">
-          Voir la pub <IconExternal className="h-3 w-3" />
-        </a>
+        <Link href={detailsHref} scroll={false} className="shrink-0 rounded-md bg-white/10 px-2.5 py-1 font-semibold text-white hover:bg-white/15">
+          Détails de la pub
+        </Link>
       </footer>
     </article>
   );

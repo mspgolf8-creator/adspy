@@ -34,3 +34,4 @@ jobs:
           CLASSIFY_MODE: rules
           MEDIA_LIMIT: "250"
           PAGE_LIMIT: "150"
+          VIDEO_LIMIT: "200"

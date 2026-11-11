@@ -24,8 +24,9 @@ async function main() {
   if (task === "media" || task === "daily") {
     console.log("Visuels des pubs…");
     // Importé seulement ici : Playwright n'est pas nécessaire pour le reste
-    const { fetchMedia } = await import("../src/lib/media");
+    const { fetchMedia, refreshVideos } = await import("../src/lib/media");
     await fetchMedia().catch((e) => console.log("✗ visuels :", errMsg(e)));
+    await refreshVideos().catch((e) => console.log("✗ vidéos :", errMsg(e)));
   }
   if (task === "pages" || task === "daily") {
     console.log("Types de page de destination…");
