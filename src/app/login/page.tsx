@@ -15,17 +15,17 @@ async function login(formData: FormData) {
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ erreur?: string }> }) {
   const { erreur } = await searchParams;
   return (
-    <form action={login} className="mx-auto mt-24 flex max-w-sm flex-col gap-3 rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+    <form action={login} className="mx-auto mt-24 flex max-w-sm flex-col gap-3 rounded-xl border border-slate-200 bg-white p-6">
       <h1 className="text-lg font-semibold">Adspy</h1>
       <input
         type="password"
         name="password"
         placeholder="Mot de passe"
         autoFocus
-        className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 outline-none focus:border-violet-500"
+        className="rounded-md border border-slate-300 bg-white px-3 py-2 outline-none focus:border-blue-500"
       />
-      {erreur && <p className="text-sm text-red-400">Mauvais mot de passe.</p>}
-      <button className="rounded-md bg-violet-500 px-4 py-2 font-medium text-white hover:bg-violet-400">Entrer</button>
+      {erreur && <p className="text-sm text-red-600">Mauvais mot de passe.</p>}
+      <button className="rounded-md bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700">Entrer</button>
     </form>
   );
 }

@@ -1,4 +1,4 @@
-// Usage : npm run collect | npm run classify | npm run daily
+// Usage : npm run collect | classify | media | daily (= les trois)
 import { config } from "dotenv";
 config({ path: ".env.local" });
 
@@ -20,8 +20,14 @@ async function main() {
     const r = await classifyPending();
     console.log(`→ ${r.classified} classées, ${r.failed} en échec`);
   }
-  if (!["collect", "classify", "daily"].includes(task)) {
-    console.log("Usage : npm run collect | classify | daily");
+  if (task === "media" || task === "daily") {
+    console.log("Visuels des pubs…");
+    // Importé seulement ici : Playwright n'est pas nécessaire pour le reste
+    const { fetchMedia } = await import("../src/lib/media");
+    await fetchMedia().catch((e) => console.log("✗ visuels :", errMsg(e)));
+  }
+  if (!["collect", "classify", "media", "daily"].includes(task)) {
+    console.log("Usage : npm run collect | classify | media | daily");
     process.exitCode = 1;
   }
 }

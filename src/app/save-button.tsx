@@ -17,7 +17,7 @@ export function SaveButton({ id, saved }: { id: string; saved: boolean }) {
         })
       }
       className={`rounded-md px-2 py-1 text-sm transition ${
-        optimistic ? "bg-violet-500/20 text-violet-300" : "text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+        optimistic ? "bg-blue-100 text-blue-700" : "text-slate-500 hover:bg-slate-200 hover:text-slate-800"
       }`}
     >
       {optimistic ? "★" : "☆"}

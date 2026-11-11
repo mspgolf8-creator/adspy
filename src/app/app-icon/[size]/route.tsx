@@ -13,11 +13,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ size: s
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "linear-gradient(135deg, #7c3aed 0%, #18181b 100%)",
+          background: "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)",
         }}
       >
         <div style={{ display: "flex", alignItems: "flex-end", color: "white", fontWeight: 800, fontSize: size * 0.56 }}>
-          A<span style={{ color: "#c4b5fd" }}>.</span>
+          A<span style={{ color: "#bfdbfe" }}>.</span>
         </div>
       </div>
     ),

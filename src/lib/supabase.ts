@@ -44,6 +44,9 @@ export type AdRow = {
   classified_at: string | null;
   saved: boolean;
   classified_by: "rules" | "ai" | "manual" | null;
+  media_url: string | null;
+  media_kind: "image" | "video" | null;
+  media_tried_at: string | null;
 };
 
 export type ScoredAd = AdRow & {

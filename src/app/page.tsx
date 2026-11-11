@@ -65,7 +65,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
       <div className="flex flex-wrap gap-2">
         <Link
           href={href(sp, { cat: undefined })}
-          className={`rounded-full px-3 py-1 text-sm ${!sp.cat ? "bg-violet-500 text-white" : "bg-zinc-900 text-zinc-300 hover:bg-zinc-800"}`}
+          className={`rounded-full px-3 py-1 text-sm ${!sp.cat ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
         >
           Toutes
         </Link>
@@ -75,7 +75,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
           <Link
             key={c.category}
             href={href(sp, { cat: c.category })}
-            className={`rounded-full px-3 py-1 text-sm ${sp.cat === c.category ? "bg-violet-500 text-white" : "bg-zinc-900 text-zinc-300 hover:bg-zinc-800"}`}
+            className={`rounded-full px-3 py-1 text-sm ${sp.cat === c.category ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
           >
             {c.category} <span className="opacity-60">{c.n}</span>
           </Link>
@@ -83,24 +83,24 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
       </div>
 
       {/* Filtres */}
-      <form className="flex flex-wrap items-end gap-3 rounded-xl border border-zinc-800 bg-zinc-900/50 p-3 text-sm">
+      <form className="flex flex-wrap items-end gap-3 rounded-xl border border-slate-200 bg-white p-3 text-sm">
         {sp.cat && <input type="hidden" name="cat" value={sp.cat} />}
         {sp.saved && <input type="hidden" name="saved" value="1" />}
         <label className="flex min-w-[200px] flex-1 flex-col gap-1">
-          <span className="text-zinc-400">Recherche</span>
+          <span className="text-slate-500">Recherche</span>
           <input name="q" defaultValue={sp.q} placeholder="produit, marque, mot dans la pub…"
-            className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 outline-none focus:border-violet-500" />
+            className="rounded-md border border-slate-300 bg-white px-3 py-2 outline-none focus:border-blue-500" />
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-zinc-400">Angle</span>
-          <select name="angle" defaultValue={sp.angle ?? ""} className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2">
+          <span className="text-slate-500">Angle</span>
+          <select name="angle" defaultValue={sp.angle ?? ""} className="rounded-md border border-slate-300 bg-white px-3 py-2">
             <option value="">Tous</option>
             {ANGLES.map((a) => <option key={a}>{a}</option>)}
           </select>
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-zinc-400">Actives depuis</span>
-          <select name="min" defaultValue={sp.min ?? ""} className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2">
+          <span className="text-slate-500">Actives depuis</span>
+          <select name="min" defaultValue={sp.min ?? ""} className="rounded-md border border-slate-300 bg-white px-3 py-2">
             <option value="">Peu importe</option>
             <option value="7">7 jours +</option>
             <option value="14">14 jours +</option>
@@ -109,28 +109,45 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
           </select>
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-zinc-400">Trier par</span>
-          <select name="sort" defaultValue={sort} className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2">
+          <span className="text-slate-500">Trier par</span>
+          <select name="sort" defaultValue={sort} className="rounded-md border border-slate-300 bg-white px-3 py-2">
             {Object.entries(SORTS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
         </label>
-        <label className="flex items-center gap-2 pb-2 text-zinc-400">
+        <label className="flex items-center gap-2 pb-2 text-slate-500">
           <input type="checkbox" name="all" value="1" defaultChecked={Boolean(sp.all)} /> Inclure les arrêtées
         </label>
-        <button className="rounded-md bg-violet-500 px-4 py-2 font-medium text-white hover:bg-violet-400">Filtrer</button>
+        <button className="rounded-md bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700">Filtrer</button>
       </form>
 
-      {error && <p className="text-sm text-red-400">Erreur Supabase : {error.message}</p>}
-      <p className="text-sm text-zinc-500">{total} pubs</p>
+      {error && <p className="text-sm text-red-600">Erreur Supabase : {error.message}</p>}
+      <p className="text-sm text-slate-500">{total} pubs</p>
 
       {/* Grille */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {ads.map((ad) => (
-          <article key={ad.id} className="flex flex-col gap-3 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
+          <article key={ad.id} className="flex flex-col gap-3 overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            {ad.media_url ? (
+              <a href={`https://www.facebook.com/ads/library/?id=${ad.id}`} target="_blank" rel="noreferrer"
+                className="relative -mx-4 -mt-4 block bg-slate-100">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={ad.media_url} alt={ad.page_name ?? "Visuel de la pub"} loading="lazy"
+                  className="max-h-96 w-full object-cover object-top" />
+                {ad.media_kind === "video" && (
+                  <span className="absolute bottom-2 left-2 rounded-full bg-black/70 px-2.5 py-1 text-xs font-medium text-white">
+                    ▶ Vidéo
+                  </span>
+                )}
+              </a>
+            ) : (
+              <div className="-mx-4 -mt-4 flex h-24 items-center justify-center bg-slate-100 text-xs text-slate-400">
+                {ad.media_tried_at ? "Pas de visuel" : "Visuel à venir"}
+              </div>
+            )}
             <div className="flex items-start gap-2">
               <div className="min-w-0 flex-1">
                 <h2 className="truncate font-medium">{ad.page_name ?? "Page inconnue"}</h2>
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-slate-500">
                   {ad.page_active_ads} pubs actives · {ad.publisher_platforms.map((p) => p.toLowerCase()).join(", ")}
                 </p>
               </div>
@@ -138,27 +155,27 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
             </div>
 
             <div className="flex flex-wrap gap-1.5 text-xs">
-              <span className={`rounded px-2 py-0.5 ${ad.days_running >= 30 ? "bg-emerald-500/15 text-emerald-300" : "bg-zinc-800 text-zinc-300"}`}>
+              <span className={`rounded px-2 py-0.5 ${ad.days_running >= 30 ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-700"}`}>
                 {ad.days_running} j
               </span>
               {ad.eu_total_reach != null && (
-                <span className="rounded bg-zinc-800 px-2 py-0.5 text-zinc-300">{fmt.format(ad.eu_total_reach)} vues UE</span>
+                <span className="rounded bg-slate-100 px-2 py-0.5 text-slate-700">{fmt.format(ad.eu_total_reach)} vues UE</span>
               )}
               <CategorySelect id={ad.id} category={ad.category} manual={ad.classified_by === "manual"} />
-              {ad.angle && <span className="rounded bg-zinc-800 px-2 py-0.5 text-zinc-400">{ad.angle}</span>}
+              {ad.angle && <span className="rounded bg-slate-100 px-2 py-0.5 text-slate-500">{ad.angle}</span>}
               {!ad.is_active && <span className="rounded bg-red-500/15 px-2 py-0.5 text-red-300">Arrêtée</span>}
             </div>
 
-            {ad.product && <p className="text-sm text-zinc-400">🛒 {ad.product}{ad.offer ? ` · ${ad.offer}` : ""}</p>}
-            {ad.hook && <p className="font-medium leading-snug text-zinc-100">« {ad.hook} »</p>}
-            <p className="line-clamp-5 whitespace-pre-line text-sm text-zinc-300">{ad.bodies[0] ?? ""}</p>
-            {ad.link_titles[0] && <p className="text-sm font-medium text-zinc-200">{ad.link_titles[0]}</p>}
+            {ad.product && <p className="text-sm text-slate-500">🛒 {ad.product}{ad.offer ? ` · ${ad.offer}` : ""}</p>}
+            {ad.hook && <p className="font-medium leading-snug text-slate-900">« {ad.hook} »</p>}
+            <p className="line-clamp-5 whitespace-pre-line text-sm text-slate-700">{ad.bodies[0] ?? ""}</p>
+            {ad.link_titles[0] && <p className="text-sm font-medium text-slate-800">{ad.link_titles[0]}</p>}
 
-            <div className="mt-auto flex gap-3 border-t border-zinc-800 pt-3 text-xs">
-              <a className="text-violet-300 hover:underline" target="_blank" rel="noreferrer"
+            <div className="mt-auto flex gap-3 border-t border-slate-200 pt-3 text-xs">
+              <a className="text-blue-700 hover:underline" target="_blank" rel="noreferrer"
                 href={`https://www.facebook.com/ads/library/?id=${ad.id}`}>Voir la pub ↗</a>
               {ad.page_id && (
-                <a className="text-zinc-400 hover:underline" target="_blank" rel="noreferrer"
+                <a className="text-slate-500 hover:underline" target="_blank" rel="noreferrer"
                   href={`https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&view_all_page_id=${ad.page_id}`}>
                   Toutes les pubs de la page ↗
                 </a>
@@ -169,16 +186,16 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
       </div>
 
       {total === 0 && !error && (
-        <p className="py-16 text-center text-zinc-500">
-          Aucune pub. Va dans <Link href="/settings" className="text-violet-300 underline">Réglages</Link> et lance une collecte.
+        <p className="py-16 text-center text-slate-500">
+          Aucune pub. Va dans <Link href="/settings" className="text-blue-700 underline">Réglages</Link> et lance une collecte.
         </p>
       )}
 
       {pages > 1 && (
         <div className="flex items-center justify-center gap-4 text-sm">
-          {page > 1 && <Link href={href(sp, { page: String(page - 1) })} className="text-violet-300">← Précédent</Link>}
-          <span className="text-zinc-500">Page {page} / {pages}</span>
-          {page < pages && <Link href={href(sp, { page: String(page + 1) })} className="text-violet-300">Suivant →</Link>}
+          {page > 1 && <Link href={href(sp, { page: String(page - 1) })} className="text-blue-700">← Précédent</Link>}
+          <span className="text-slate-500">Page {page} / {pages}</span>
+          {page < pages && <Link href={href(sp, { page: String(page + 1) })} className="text-blue-700">Suivant →</Link>}
         </div>
       )}
     </div>
