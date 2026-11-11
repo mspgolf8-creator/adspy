@@ -124,7 +124,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
       <p className="text-sm text-slate-500">{total} pubs</p>
 
       {/* Grille */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
         {ads.map((ad) => (
           <article key={ad.id} className="flex flex-col gap-3 overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             {ad.media_url ? (
@@ -132,7 +132,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
                 className="relative -mx-4 -mt-4 block bg-slate-100">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={ad.media_url} alt={ad.page_name ?? "Visuel de la pub"} loading="lazy"
-                  className="max-h-96 w-full object-cover object-top" />
+                  className="aspect-[4/5] w-full object-contain object-center" />
                 {ad.media_kind === "video" && (
                   <span className="absolute bottom-2 left-2 rounded-full bg-black/70 px-2.5 py-1 text-xs font-medium text-white">
                     ▶ Vidéo

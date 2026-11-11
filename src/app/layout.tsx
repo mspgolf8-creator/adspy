@@ -12,7 +12,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="fr">
       <body className="min-h-screen bg-slate-50 text-slate-900 antialiased">
         <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/90 backdrop-blur">
-          <nav className="mx-auto flex max-w-7xl items-center gap-6 px-4 py-3">
+          <nav className="mx-auto flex max-w-[1920px] items-center gap-6 px-4 py-3">
             <Link href="/" className="text-lg font-semibold tracking-tight">
               Adspy<span className="text-blue-600">.</span>
             </Link>
@@ -21,7 +21,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Link href="/settings" className="ml-auto text-sm text-slate-500 hover:text-slate-900">Réglages</Link>
           </nav>
         </header>
-        <main className="mx-auto max-w-7xl px-4 py-6">{children}</main>
+        <main className="mx-auto max-w-[1920px] px-4 py-6 lg:px-6">{children}</main>
       </body>
     </html>
   );
