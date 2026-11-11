@@ -21,3 +21,9 @@ Adspy perso : pubs Meta actives (API officielle Ad Library, pubs diffusées en U
 - L'API Meta donne les pubs commerciales seulement si elles sont diffusées en UE.
 - L'API ne fournit pas les vidéos ou images : le bouton « Voir la pub » ouvre la pub dans l'Ad Library.
 - Le token Meta du Graph API Explorer expire vite (environ 1 h). Prends un token longue durée (60 jours) pour la collecte quotidienne.
+
+## App installée (Chrome)
+
+- Le serveur de l'app roule tout seul au login sur http://localhost:4545 (launchd `ca.mathew.adspy-web`, script `scripts/web.sh`, journal `logs/web.log`).
+- Il rebuild automatiquement au démarrage si le code a changé. Pour appliquer un changement tout de suite : `launchctl kickstart -k gui/$(id -u)/ca.mathew.adspy-web`.
+- Collecte quotidienne : launchd `ca.mathew.adspy` (7 h), journal `logs/daily.log`.
