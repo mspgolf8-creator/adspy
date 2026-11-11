@@ -1,103 +1,181 @@
-import Image from "next/image";
+import Link from "next/link";
+import { db, isConfigured, ScoredAd } from "@/lib/supabase";
+import { ANGLES } from "@/lib/categories";
+import { SetupNotice } from "./setup-notice";
+import { SaveButton } from "./save-button";
+import { CategorySelect } from "./category-select";
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+
+const PAGE_SIZE = 48;
+const SORTS = {
+  score: { label: "Score gagnante", column: "winner_score" },
+  days: { label: "Jours actifs", column: "days_running" },
+  reach: { label: "Portée UE", column: "eu_total_reach" },
+  recent: { label: "Plus récentes", column: "delivery_start" },
+} as const;
+type SortKey = keyof typeof SORTS;
+
+type Search = Record<string, string | undefined>;
+
+function href(current: Search, patch: Search) {
+  const next = { ...current, ...patch };
+  if (!("page" in patch)) delete next.page;
+  const qs = new URLSearchParams(
+    Object.entries(next).filter((e): e is [string, string] => Boolean(e[1])),
+  ).toString();
+  return qs ? `/?${qs}` : "/";
+}
+
+const fmt = new Intl.NumberFormat("fr-CA", { notation: "compact", maximumFractionDigits: 1 });
+
+export default async function Home({ searchParams }: { searchParams: Promise<Search> }) {
+  if (!isConfigured()) return <SetupNotice />;
+  const sp = await searchParams;
+  const sort: SortKey = (sp.sort as SortKey) in SORTS ? (sp.sort as SortKey) : "score";
+  const page = Math.max(1, Number(sp.page || 1));
+  const minDays = Number(sp.min || 0);
+
+  let query = db().from("ads_scored").select("*", { count: "exact" });
+  if (sp.saved) query = query.eq("saved", true);
+  else if (!sp.all) query = query.eq("is_active", true);
+  if (sp.cat === "Non classée") query = query.is("category", null);
+  else if (sp.cat) query = query.eq("category", sp.cat);
+  if (sp.angle) query = query.eq("angle", sp.angle);
+  if (minDays) query = query.gte("days_running", minDays);
+  if (sp.q) query = query.textSearch("search", sp.q, { type: "websearch", config: "simple" });
+  query = query
+    .order(SORTS[sort].column, { ascending: false, nullsFirst: false })
+    .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
+
+  const [{ data, count, error }, { data: cats }] = await Promise.all([
+    query,
+    db().from("category_counts").select("category, n"),
+  ]);
+  const ads = (data ?? []) as ScoredAd[];
+  const total = count ?? 0;
+  const pages = Math.ceil(total / PAGE_SIZE);
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="space-y-5">
+      {/* Catégories */}
+      <div className="flex flex-wrap gap-2">
+        <Link
+          href={href(sp, { cat: undefined })}
+          className={`rounded-full px-3 py-1 text-sm ${!sp.cat ? "bg-violet-500 text-white" : "bg-zinc-900 text-zinc-300 hover:bg-zinc-800"}`}
+        >
+          Toutes
+        </Link>
+        {(cats ?? []).map((c) => (
+          <Link
+            key={c.category}
+            href={href(sp, { cat: c.category })}
+            className={`rounded-full px-3 py-1 text-sm ${sp.cat === c.category ? "bg-violet-500 text-white" : "bg-zinc-900 text-zinc-300 hover:bg-zinc-800"}`}
+          >
+            {c.category} <span className="opacity-60">{c.n}</span>
+          </Link>
+        ))}
+      </div>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+      {/* Filtres */}
+      <form className="flex flex-wrap items-end gap-3 rounded-xl border border-zinc-800 bg-zinc-900/50 p-3 text-sm">
+        {sp.cat && <input type="hidden" name="cat" value={sp.cat} />}
+        {sp.saved && <input type="hidden" name="saved" value="1" />}
+        <label className="flex min-w-[200px] flex-1 flex-col gap-1">
+          <span className="text-zinc-400">Recherche</span>
+          <input name="q" defaultValue={sp.q} placeholder="produit, marque, mot dans la pub…"
+            className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 outline-none focus:border-violet-500" />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-zinc-400">Angle</span>
+          <select name="angle" defaultValue={sp.angle ?? ""} className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2">
+            <option value="">Tous</option>
+            {ANGLES.map((a) => <option key={a}>{a}</option>)}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-zinc-400">Actives depuis</span>
+          <select name="min" defaultValue={sp.min ?? ""} className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2">
+            <option value="">Peu importe</option>
+            <option value="7">7 jours +</option>
+            <option value="14">14 jours +</option>
+            <option value="30">30 jours +</option>
+            <option value="60">60 jours +</option>
+          </select>
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-zinc-400">Trier par</span>
+          <select name="sort" defaultValue={sort} className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2">
+            {Object.entries(SORTS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+          </select>
+        </label>
+        <label className="flex items-center gap-2 pb-2 text-zinc-400">
+          <input type="checkbox" name="all" value="1" defaultChecked={Boolean(sp.all)} /> Inclure les arrêtées
+        </label>
+        <button className="rounded-md bg-violet-500 px-4 py-2 font-medium text-white hover:bg-violet-400">Filtrer</button>
+      </form>
+
+      {error && <p className="text-sm text-red-400">Erreur Supabase : {error.message}</p>}
+      <p className="text-sm text-zinc-500">{total} pubs</p>
+
+      {/* Grille */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {ads.map((ad) => (
+          <article key={ad.id} className="flex flex-col gap-3 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
+            <div className="flex items-start gap-2">
+              <div className="min-w-0 flex-1">
+                <h2 className="truncate font-medium">{ad.page_name ?? "Page inconnue"}</h2>
+                <p className="text-xs text-zinc-500">
+                  {ad.page_active_ads} pubs actives · {ad.publisher_platforms.map((p) => p.toLowerCase()).join(", ")}
+                </p>
+              </div>
+              <SaveButton id={ad.id} saved={ad.saved} />
+            </div>
+
+            <div className="flex flex-wrap gap-1.5 text-xs">
+              <span className={`rounded px-2 py-0.5 ${ad.days_running >= 30 ? "bg-emerald-500/15 text-emerald-300" : "bg-zinc-800 text-zinc-300"}`}>
+                {ad.days_running} j
+              </span>
+              {ad.eu_total_reach != null && (
+                <span className="rounded bg-zinc-800 px-2 py-0.5 text-zinc-300">{fmt.format(ad.eu_total_reach)} vues UE</span>
+              )}
+              <CategorySelect id={ad.id} category={ad.category} manual={ad.classified_by === "manual"} />
+              {ad.angle && <span className="rounded bg-zinc-800 px-2 py-0.5 text-zinc-400">{ad.angle}</span>}
+              {!ad.is_active && <span className="rounded bg-red-500/15 px-2 py-0.5 text-red-300">Arrêtée</span>}
+            </div>
+
+            {ad.product && <p className="text-sm text-zinc-400">🛒 {ad.product}{ad.offer ? ` · ${ad.offer}` : ""}</p>}
+            {ad.hook && <p className="font-medium leading-snug text-zinc-100">« {ad.hook} »</p>}
+            <p className="line-clamp-5 whitespace-pre-line text-sm text-zinc-300">{ad.bodies[0] ?? ""}</p>
+            {ad.link_titles[0] && <p className="text-sm font-medium text-zinc-200">{ad.link_titles[0]}</p>}
+
+            <div className="mt-auto flex gap-3 border-t border-zinc-800 pt-3 text-xs">
+              <a className="text-violet-300 hover:underline" target="_blank" rel="noreferrer"
+                href={`https://www.facebook.com/ads/library/?id=${ad.id}`}>Voir la pub ↗</a>
+              {ad.page_id && (
+                <a className="text-zinc-400 hover:underline" target="_blank" rel="noreferrer"
+                  href={`https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&view_all_page_id=${ad.page_id}`}>
+                  Toutes les pubs de la page ↗
+                </a>
+              )}
+            </div>
+          </article>
+        ))}
+      </div>
+
+      {total === 0 && !error && (
+        <p className="py-16 text-center text-zinc-500">
+          Aucune pub. Va dans <Link href="/settings" className="text-violet-300 underline">Réglages</Link> et lance une collecte.
+        </p>
+      )}
+
+      {pages > 1 && (
+        <div className="flex items-center justify-center gap-4 text-sm">
+          {page > 1 && <Link href={href(sp, { page: String(page - 1) })} className="text-violet-300">← Précédent</Link>}
+          <span className="text-zinc-500">Page {page} / {pages}</span>
+          {page < pages && <Link href={href(sp, { page: String(page + 1) })} className="text-violet-300">Suivant →</Link>}
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      )}
     </div>
   );
 }
