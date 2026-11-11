@@ -1,0 +1,32 @@
+name: Collecte quotidienne
+
+on:
+  schedule:
+    - cron: "0 12 * * *" # 7 h à Montréal (heure normale), 8 h l'été
+  workflow_dispatch: {} # bouton « Run workflow » pour lancer à la main
+
+concurrency:
+  group: collecte
+  cancel-in-progress: false
+
+jobs:
+  collecte:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Collecte + classement
+        run: npm run daily
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          META_API_VERSION: v27.0
+          META_COUNTRIES: FR,DE,NL,BE,ES,IT,SE,DK,IE,AT
+          META_MAX_PER_TERM: "500"
+          CLASSIFY_MODE: rules

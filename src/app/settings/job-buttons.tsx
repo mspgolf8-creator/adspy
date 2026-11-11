@@ -20,10 +20,16 @@ function Job({ label, action }: { label: string; action: () => Promise<JobState>
   );
 }
 
-export function JobButtons() {
+export function JobButtons({ canCollect }: { canCollect: boolean }) {
   return (
     <div className="space-y-3">
-      <Job label="1. Collecter les pubs maintenant" action={runCollect} />
+      {canCollect ? (
+        <Job label="1. Collecter les pubs maintenant" action={runCollect} />
+      ) : (
+        <p className="rounded-md bg-zinc-950 p-3 text-xs text-zinc-400">
+          Pour lancer une collecte tout de suite : GitHub → ton dépôt adspy → Actions → « Collecte quotidienne » → Run workflow.
+        </p>
+      )}
       <Job label="2. Classer les nouvelles pubs" action={runClassify} />
       <Job label="Reclasser avec les règles (après une amélioration)" action={runReclassify} />
     </div>

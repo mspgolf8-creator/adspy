@@ -56,10 +56,11 @@ export default async function Settings() {
           <h2 className="text-lg font-semibold">Collecte et classification</h2>
           <p className="text-sm text-zinc-500">
             {total ?? 0} pubs en base · {pending ?? 0} pas encore classées.
-            Pour l’automatiser chaque jour : <code>npm run daily</code>.
+            La collecte roule toute seule chaque jour à 7 h (GitHub Actions).
           </p>
         </div>
-        <JobButtons />
+        {/* En ligne (Vercel), une collecte complète dépasse le temps permis : elle passe par GitHub Actions */}
+        <JobButtons canCollect={!process.env.VERCEL} />
         <div>
           <h3 className="mb-2 text-sm font-medium text-zinc-300">Dernières exécutions</h3>
           <ul className="space-y-1 text-xs text-zinc-400">
