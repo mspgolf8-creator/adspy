@@ -31,10 +31,9 @@ function toRow(ad: MetaAd, now: string) {
 /** Sauvegarde un lot de pubs en gardant les mots-clés déjà associés. */
 async function upsertBatch(ads: MetaAd[], term: string, now: string) {
   const ids = ads.map((a) => a.id);
-  const { data: existing, error: readErr } = await db()
-    .from("ads")
-    .select("id, matched_terms")
-    .in("id", ids);
+  const { data: existing, error: readErr } = await withRetry(() =>
+    db().from("ads").select("id, matched_terms").in("id", ids),
+  );
   if (readErr) throw readErr;
   const termsById = new Map((existing ?? []).map((e) => [e.id as string, e.matched_terms as string[]]));
 
@@ -42,9 +41,19 @@ async function upsertBatch(ads: MetaAd[], term: string, now: string) {
     const prev = termsById.get(ad.id) ?? [];
     return { ...toRow(ad, now), matched_terms: Array.from(new Set([...prev, term])) };
   });
-  const { error } = await db().from("ads").upsert(rows, { onConflict: "id" });
+  const { error } = await withRetry(() => db().from("ads").upsert(rows, { onConflict: "id" }));
   if (error) throw error;
   return rows.length;
+}
+
+/** Supabase (plan gratuit) est parfois lent : on réessaie 2 fois sur un timeout ou une coupure. */
+async function withRetry<T extends { error: { message: string } | null }>(run: () => PromiseLike<T>): Promise<T> {
+  let res = await run();
+  for (let i = 1; i <= 2 && res.error && /timeout|fetch failed|ECONNRESET/i.test(res.error.message); i++) {
+    await new Promise((r) => setTimeout(r, 5000 * i));
+    res = await run();
+  }
+  return res;
 }
 
 export async function collect(log: (msg: string) => void = console.log): Promise<CollectResult> {
