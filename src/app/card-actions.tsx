@@ -68,19 +68,21 @@ export function CardActions({ adId, detailsHref, saved, folderIds, folders, tags
       </div>
 
       {/* Boutons */}
-      <div className="flex gap-2">
+      {/* Boutons : en carte étroite, les icônes disparaissent pour garder le texte lisible */}
+      <div className="@container flex gap-2">
         <Link href={detailsHref} scroll={false}
-          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-white/10 py-2 text-sm font-semibold text-white hover:bg-white/15">
-          <IconAd className="h-[18px] w-[18px]" /> Détails
+          className="flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-white/10 px-2 text-sm font-semibold text-white hover:bg-white/15">
+          <IconAd className="hidden h-4 w-4 shrink-0 @[15rem]:block" /> Détails
         </Link>
-        <div ref={box} className="relative flex flex-1">
+        <div ref={box} className="relative flex h-9 min-w-0 flex-1">
           <button onClick={toggleQuick} title={isSaved ? "Retirer de tous les dossiers" : "Sauvegarder dans le dossier par défaut"}
-            className="flex flex-1 items-center justify-center gap-2 rounded-l-xl bg-blue-600 py-2 text-sm font-semibold text-white hover:bg-blue-500">
-            <IconBookmark className={`h-[18px] w-[18px] ${isSaved ? "fill-current" : ""}`} /> {isSaved ? "Sauvée" : "Save"}
+            className="flex min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-l-lg bg-blue-600 pl-2 text-sm font-semibold text-white hover:bg-blue-500">
+            <IconBookmark className={`hidden h-4 w-4 shrink-0 @[15rem]:block ${isSaved ? "fill-current" : ""}`} /> {isSaved ? "Sauvée" : "Save"}
           </button>
-          <button onClick={() => setMenu(!menu)} title="Choisir les dossiers et les tags"
-            className="rounded-r-xl border-l border-white/20 bg-blue-600 px-2.5 text-white hover:bg-blue-500">
-            <IconChevron className={`h-4 w-4 transition ${menu ? "rotate-180" : ""}`} />
+          <button onClick={() => setMenu(!menu)} title="Choisir les dossiers et les tags" aria-label="Choisir les dossiers et les tags"
+            className="relative grid w-7 shrink-0 place-items-center rounded-r-lg bg-blue-600 text-white/90 hover:bg-blue-500 hover:text-white">
+            <span className="absolute inset-y-2 left-0 w-px bg-white/25" />
+            <IconChevron className={`h-3 w-3 transition ${menu ? "rotate-180" : ""}`} />
           </button>
           {menu && (
             <SaveMenu adId={adId} folders={folders} inFolders={inFolders} tags={myTags} allTags={allTags}
