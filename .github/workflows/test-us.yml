@@ -24,3 +24,10 @@ jobs:
           LIB_TERMS: "free shipping,bestseller,50% off"
           LIB_COUNTRIES: US,CA
           LIB_MAX_PER_TERM: "200"
+          LIB_DEBUG_DIR: debug
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: debug
+          path: debug
+          if-no-files-found: ignore

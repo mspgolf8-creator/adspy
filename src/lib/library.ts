@@ -164,10 +164,13 @@ async function searchOne(ctx: BrowserContext, term: string, country: string, max
       [...document.querySelectorAll('script[type="application/json"]')]
         .map((s) => s.textContent ?? "").filter((t) => t.includes("ad_archive_id")));
     for (const t of embedded) { try { add(findResults(JSON.parse(t))); } catch {} }
+    // Sinon la première page arrive par le réseau : on l'attend jusqu'à 20 s
+    for (let i = 0; i < 20 && !seen.size; i++) await page.waitForTimeout(1000);
     if (!seen.size) {
       const body = (await page.textContent("body").catch(() => "")) ?? "";
-      if (/no ads match|aucune publicité|0 results/i.test(body)) return [];
-      throw new Blocked("aucun résultat lisible (page changée ou bloquée)");
+      if (/no ads match|aucune publicité ne correspond|^\s*0 results/im.test(body)) return [];
+      await debugDump(page, `${country}-${term}`);
+      throw new Blocked(`aucun résultat lisible (page : ${body.replace(/\s+/g, " ").slice(0, 160)})`);
     }
 
     // Pages suivantes : défilement (Facebook charge ~30 pubs à la fois)
@@ -182,6 +185,17 @@ async function searchOne(ctx: BrowserContext, term: string, country: string, max
   } finally {
     await page.close().catch(() => {});
   }
+}
+
+/** Capture d'écran + HTML quand la page n'a pas la forme attendue (dossier LIB_DEBUG_DIR). */
+async function debugDump(page: Page, name: string) {
+  const dir = process.env.LIB_DEBUG_DIR;
+  if (!dir) return;
+  const { mkdirSync, writeFileSync } = await import("fs");
+  mkdirSync(dir, { recursive: true });
+  const safe = name.replace(/[^a-z0-9-]+/gi, "_");
+  await page.screenshot({ path: `${dir}/${safe}.png`, fullPage: false }).catch(() => {});
+  writeFileSync(`${dir}/${safe}.html`, await page.content().catch(() => ""));
 }
 
 /* ---------- Sauvegarde ---------- */
