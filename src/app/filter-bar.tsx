@@ -5,12 +5,12 @@ import { useRouter } from "next/navigation";
 import { CHANNELS, STAR_LEVELS, appliedFilters, countryName, flag, hrefWith, languageName, list, type Search } from "@/lib/filters";
 import {
   IconBars, IconChevron, IconFlag, IconHourglass, IconLanguage, IconLayers, IconLimit, IconMegaphone,
-  IconPage, IconPulse, IconReset, IconStatus, IconTarget, IconX,
+  IconPage, IconPulse, IconReset, IconStatus, IconTag, IconTarget, IconX,
 } from "./icons";
 import { Stars } from "./stars";
 
 type Facet = { value: string; n?: number };
-export type Facets = { countries: Facet[]; languages: Facet[]; niches: Facet[]; pageTypes: Facet[] };
+export type Facets = { countries: Facet[]; languages: Facet[]; niches: Facet[]; pageTypes: Facet[]; tags: Facet[] };
 
 export function FilterBar({ sp, facets }: { sp: Search; facets: Facets }) {
   const router = useRouter();
@@ -33,7 +33,7 @@ export function FilterBar({ sp, facets }: { sp: Search; facets: Facets }) {
           </button>
         ))}
         {applied.length > 0 && (
-          <button onClick={() => router.push(sp.saved ? "/?saved=1" : "/")} className="ml-auto flex items-center gap-1 text-xs text-zinc-400 hover:text-white">
+          <button onClick={() => router.push(sp.folder ? `/?folder=${sp.folder}` : sp.saved ? "/?saved=1" : "/")} className="ml-auto flex items-center gap-1 text-xs text-zinc-400 hover:text-white">
             <IconReset /> Réinitialiser
           </button>
         )}
@@ -56,6 +56,8 @@ export function FilterBar({ sp, facets }: { sp: Search; facets: Facets }) {
           options={CHANNELS.map((c) => ({ value: c.value, render: c.label }))} />
         <Checklist {...props("pt")} param="pt" icon={<IconPage />} label="Type de page" searchable
           options={facets.pageTypes.map((c) => ({ value: c.value, n: c.n, render: c.value }))} />
+        <Checklist {...props("tag")} param="tag" icon={<IconTag />} label="Tags" searchable
+          options={facets.tags.map((c) => ({ value: c.value, n: c.n, render: c.value }))} />
         <Status {...props("status")} />
       </div>
     </section>

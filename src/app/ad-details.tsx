@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ScoredAd } from "@/lib/supabase";
 import { CHANNELS, countryName, flag, languageName } from "@/lib/filters";
-import { AdCard } from "./ad-card";
+import { AdCard, type CardExtras } from "./ad-card";
 import { CategorySelect } from "./category-select";
 import { CopyText, ModalShell } from "./modal-shell";
 import { SaveButton } from "./save-button";
@@ -21,8 +21,8 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-export function AdDetails({ ad, similar, closeHref, detailsHref }: {
-  ad: ScoredAd; similar: ScoredAd[]; closeHref: string; detailsHref: (id: string) => string;
+export function AdDetails({ ad, similar, closeHref, detailsHref, extras }: {
+  ad: ScoredAd; similar: ScoredAd[]; closeHref: string; detailsHref: (id: string) => string; extras?: (id: string) => CardExtras;
 }) {
   const name = ad.page_name ?? "Page inconnue";
   const library = `https://www.facebook.com/ads/library/?id=${ad.id}`;
@@ -176,7 +176,7 @@ export function AdDetails({ ad, similar, closeHref, detailsHref }: {
             )}
           </div>
           <div className="grid gap-4 min-[640px]:grid-cols-2 min-[1024px]:grid-cols-4">
-            {similar.map((s) => <AdCard key={s.id} ad={s} detailsHref={detailsHref(s.id)} />)}
+            {similar.map((s) => <AdCard key={s.id} ad={s} detailsHref={detailsHref(s.id)} extras={extras?.(s.id)} />)}
           </div>
         </section>
       )}

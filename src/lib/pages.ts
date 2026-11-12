@@ -170,16 +170,23 @@ export async function fetchPageTypes(log: Log = console.log) {
   const limit = Number(process.env.PAGE_LIMIT || 150);
   const { token } = metaConfig();
 
-  const { data, error } = await db()
-    .from("ads_scored")
-    .select("id, landing_url")
-    .eq("is_active", true)
-    .is("page_type_tried_at", null)
-    .or('category.is.null,category.neq."Livres, jeux & apps"') // les romans / apps : pas utile
-    .order("winner_score", { ascending: false })
-    .limit(limit);
-  if (error) throw error;
-  const rows = (data ?? []) as { id: string; landing_url: string | null }[];
+  // Moitié Europe (par score), moitié US/CA (par rang d'impressions) ; le reste va à l'autre si une moitié est vide
+  const pending = (source: string, n: number) => {
+    let q = db()
+      .from("ads_scored")
+      .select("id, landing_url")
+      .eq("is_active", true)
+      .eq("source", source)
+      .is("page_type_tried_at", null)
+      .or('category.is.null,category.neq."Livres, jeux & apps"'); // les romans / apps : pas utile
+    q = source === "api" ? q.order("winner_score", { ascending: false }) : q.order("lib_rank", { ascending: true, nullsFirst: false });
+    return q.limit(n);
+  };
+  const lib = await pending("library", Math.ceil(limit / 2));
+  if (lib.error) throw lib.error;
+  const api = await pending("api", limit - (lib.data?.length ?? 0));
+  if (api.error) throw api.error;
+  const rows = [...(api.data ?? []), ...(lib.data ?? [])] as { id: string; landing_url: string | null }[];
   if (!rows.length) return log("✓ types de page : rien de nouveau");
 
   const browser = await chromium.launch();

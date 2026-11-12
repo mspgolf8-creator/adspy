@@ -61,6 +61,7 @@ export async function refreshVideos(log: Log = console.log) {
     .from("ads_scored")
     .select("id")
     .eq("is_active", true)
+    .eq("source", "api") // les pubs US/CA ont leur visuel via la bibliothèque
     .eq("media_kind", "video")
     .or(`video_expires_at.is.null,video_expires_at.lt.${soon}`)
     .order("winner_score", { ascending: false })
@@ -103,6 +104,7 @@ export async function fetchMedia(log: Log = console.log) {
     .from("ads_scored")
     .select("id")
     .eq("is_active", true)
+    .eq("source", "api") // les pubs US/CA ont leur visuel via la bibliothèque
     .is("media_tried_at", null)
     .order("winner_score", { ascending: false })
     .limit(limit);

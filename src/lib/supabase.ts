@@ -58,6 +58,12 @@ export type AdRow = {
   page_type_tried_at?: string | null;
   video_url?: string | null;
   video_expires_at?: string | null;
+  source?: "api" | "library";
+  cta_text?: string | null;
+  lib_rank?: number | null;
+  collation_count?: number | null;
+  brand_pct?: number | null;
+  tags?: string[];
 };
 
 export type ScoredAd = AdRow & {

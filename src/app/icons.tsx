@@ -88,3 +88,24 @@ export const IconPlay = ({ className }: P) => (
 export const IconBolt = ({ className }: P) => (
   <svg {...base(className)}><path d="M13 2 4 14h7l-1 8 9-12h-7z" /></svg>
 );
+export const IconTag = ({ className }: P) => (
+  <svg {...base(className)}><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z" /><circle cx="7.5" cy="7.5" r="1.2" /></svg>
+);
+export const IconFolder = ({ className }: P) => (
+  <svg {...base(className)}><path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>
+);
+export const IconFolderPlus = ({ className }: P) => (
+  <svg {...base(className)}><path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><path d="M12 10v6M9 13h6" /></svg>
+);
+export const IconAd = ({ className }: P) => (
+  <svg {...base(className)}><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m7 15 2-6 2 6M7.7 13h2.6M14 9v6h1.5a2.5 2.5 0 0 0 0-5H14" /></svg>
+);
+export const IconPlus = ({ className }: P) => (
+  <svg {...base(className)}><path d="M12 5v14M5 12h14" /></svg>
+);
+export const IconCheck = ({ className }: P) => (
+  <svg {...base(className)}><path d="m5 12 5 5L20 7" /></svg>
+);
+export const IconTrendUp = ({ className }: P) => (
+  <svg {...base(className)}><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></svg>
+);

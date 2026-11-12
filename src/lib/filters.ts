@@ -36,7 +36,10 @@ export const CHANNELS = [
 ] as const;
 
 /** Paramètres multi-valeurs (séparés par des virgules). */
-export const LIST_KEYS = ["perf", "country", "lang", "niche", "ch", "pt"] as const;
+export const LIST_KEYS = ["perf", "country", "lang", "niche", "ch", "pt", "tag"] as const;
+
+/** Pays collectés par la bibliothèque publique (pas de portée : classés par rang d'impressions de Meta). */
+export const LIB_COUNTRIES = ["US", "CA"];
 
 export function list(sp: Search, key: string): string[] {
   return (sp[key] ?? "").split(",").map((s) => s.trim()).filter(Boolean);
@@ -98,6 +101,8 @@ export function appliedFilters(sp: Search): { key: string; keys: string[]; label
   if (ch.length) out.push({ key: "ch", keys: ["ch"], label: `Canaux ${ch.map((v) => CHANNELS.find((x) => x.value === v)?.label ?? v).join(", ")}` });
   const pt = list(sp, "pt");
   if (pt.length) out.push({ key: "pt", keys: ["pt"], label: pt.length > 2 ? `Type de page (${pt.length})` : `Type de page ${pt.join(", ")}` });
+  const tg = list(sp, "tag");
+  if (tg.length) out.push({ key: "tag", keys: ["tag"], label: `Tag ${tg.join(", ")}` });
   if (sp.status && sp.status !== "active") out.push({ key: "status", keys: ["status"], label: sp.status === "all" ? "Statut : toutes" : "Statut : arrêtées" });
   if (sp.brand) out.push({ key: "brandid", keys: ["brand"], label: "Une marque" });
   return out;
