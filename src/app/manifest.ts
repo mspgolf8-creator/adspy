@@ -8,8 +8,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Espionnage de pubs Meta par catégorie",
     start_url: "/",
     display: "standalone",
-    background_color: "#f8fafc",
-    theme_color: "#2563eb",
+    background_color: "#0d0d10",
+    theme_color: "#0d0d10",
     icons: [
       { src: "/app-icon/192", sizes: "192x192", type: "image/png" },
       { src: "/app-icon/512", sizes: "512x512", type: "image/png" },

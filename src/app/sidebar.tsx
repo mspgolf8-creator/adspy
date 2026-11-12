@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { IconBookmark, IconBrand, IconExplore, IconFolder, IconFolderPlus, IconSettings, IconX } from "./icons";
+import { LogoMark } from "./logo";
 import { createFolder, deleteFolder, type Folder } from "./actions";
 
 const NAV = [
@@ -49,10 +50,10 @@ export function Sidebar({ folders }: { folders: Folder[] }) {
         </button>
         <Link href="/" className={`mb-6 block outline-none ${small ? "mx-auto" : "px-3"}`}>
           {small ? (
-            <div className="grid h-11 w-11 place-items-center rounded-xl bg-white/15 text-xl font-bold">a</div>
+            <div className="grid h-11 w-11 place-items-center rounded-xl bg-[#0d0d10] shadow-md"><LogoMark className="h-5 w-5" /></div>
           ) : (
             <>
-              <div className="text-2xl font-bold tracking-tight">adspy</div>
+              <div className="flex items-center gap-2 text-2xl font-bold tracking-tight"><LogoMark className="h-6 w-6" />adspy</div>
               <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">Discover ads</div>
             </>
           )}
@@ -107,7 +108,7 @@ export function Sidebar({ folders }: { folders: Folder[] }) {
 
       {/* Téléphone / petite fenêtre : barre du haut */}
       <header className="sticky top-0 z-20 flex items-center gap-4 overflow-x-auto bg-[#2f4fe0] px-4 py-3 text-sm font-semibold text-white lg:hidden">
-        <Link href="/" className="text-lg font-bold">adspy</Link>
+        <Link href="/" className="flex items-center gap-1.5 text-lg font-bold"><LogoMark className="h-5 w-5" />adspy</Link>
         {NAV.map(({ href, label, match }) => (
           <Link key={href} href={href} className={`whitespace-nowrap ${match(path, saved, openFolder) ? "" : "text-white/70"}`}>{label}</Link>
         ))}
