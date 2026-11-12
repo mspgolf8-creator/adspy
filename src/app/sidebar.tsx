@@ -43,21 +43,26 @@ export function Sidebar({ folders }: { folders: Folder[] }) {
     <>
       {/* Ordinateur : barre bleue à gauche */}
       <aside className={`fixed inset-y-0 left-0 z-20 hidden w-[var(--sb)] flex-col bg-gradient-to-b from-[#2f4fe0] to-[#2a44c4] whitespace-nowrap px-3 py-5 text-white transition-[width] lg:flex ${ready ? "" : "[&>*]:invisible"}`}>
-        {/* Bouton réduire / agrandir : pastille ronde à cheval sur le bord droit */}
-        <button onClick={toggle} title={small ? "Agrandir la barre" : "Réduire la barre"} aria-label={small ? "Agrandir la barre" : "Réduire la barre"}
-          className="absolute -right-3 top-8 grid h-6 w-6 place-items-center rounded-full border border-slate-200 bg-white text-[#2f4fe0] shadow-md outline-none transition hover:scale-110 focus-visible:ring-2 focus-visible:ring-white">
-          <svg className={`h-3.5 w-3.5 transition ${small ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m14 7-5 5 5 5" /></svg>
-        </button>
-        <Link href="/" className={`mb-6 block outline-none ${small ? "mx-auto" : "px-3"}`}>
-          {small ? (
-            <div className="grid h-11 w-11 place-items-center rounded-xl bg-[#0d0d10] shadow-md"><LogoMark className="h-5 w-5" /></div>
-          ) : (
-            <>
-              <div className="flex items-center gap-2 text-2xl font-bold tracking-tight"><LogoMark className="h-6 w-6" />adspy</div>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">Discover ads</div>
-            </>
-          )}
-        </Link>
+        <div className={`mb-6 flex ${small ? "flex-col items-center gap-3" : "items-start justify-between pl-3"}`}>
+          <Link href="/" className="block outline-none">
+            {small ? (
+              <div className="grid h-11 w-11 place-items-center rounded-xl bg-[#0d0d10] shadow-md"><LogoMark className="h-5 w-5" /></div>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 text-2xl font-bold tracking-tight"><LogoMark className="h-6 w-6" />adspy</div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">Discover ads</div>
+              </>
+            )}
+          </Link>
+          {/* Bouton réduire / agrandir : carré translucide avec une flèche et le bord du panneau */}
+          <button onClick={toggle} title={small ? "Agrandir la barre" : "Réduire la barre"} aria-label={small ? "Agrandir la barre" : "Réduire la barre"}
+            className={`grid h-7 w-7 shrink-0 place-items-center rounded-md bg-white/20 text-white outline-none transition hover:bg-white/30 focus-visible:ring-2 focus-visible:ring-white/70 ${small ? "" : "mt-1"}`}>
+            <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d={small ? "m6.5 5 3 3-3 3" : "m8.5 5-3 3 3 3"} />
+              <path d="M12.5 2.5v11" />
+            </svg>
+          </button>
+        </div>
         <nav className={`flex flex-col overflow-hidden ${small ? "gap-2" : "gap-1"}`}>
           {NAV.map(({ href, label, icon: Icon, match }) => (
             <div key={href}>
