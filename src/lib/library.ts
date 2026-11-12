@@ -148,11 +148,12 @@ async function newContext(browser: Browser) {
 }
 
 /** Une recherche (mot-clé × pays) : renvoie jusqu'à `max` pubs dans l'ordre de Meta (impressions). */
-async function searchOne(ctx: BrowserContext, term: string, country: string, max: number): Promise<LibAd[]> {
+async function searchOne(ctx: BrowserContext, term: string, country: string, media: string, max: number): Promise<LibAd[]> {
   const page: Page = await ctx.newPage();
   const seen = new Map<string, LibAd>();
   const add = (ads: LibAd[]) => { for (const a of ads) if (!seen.has(a.ad_archive_id)) seen.set(a.ad_archive_id, a); };
   let lastHasNext = true;
+  let limited = false; // Facebook refuse la page suivante (serveurs de centre de données)
   page.on("response", async (r) => {
     if (!r.url().includes("/api/graphql")) return;
     const text = await r.text().catch(() => "");
@@ -160,6 +161,7 @@ async function searchOne(ctx: BrowserContext, term: string, country: string, max
       const name = new URLSearchParams(r.request().postData() ?? "").get("fb_api_req_friendly_name");
       console.log(`  gql ${name} ${r.status()} ${text.length}o ${text.includes("ad_archive_id") ? "" : text.slice(0, 160).replace(/\s+/g, " ")}`);
     }
+    if (/Rate limit exceeded/.test(text)) limited = true;
     if (!text.includes("ad_archive_id")) return;
     for (const j of parseLines(text)) {
       const found = findResults(j);
@@ -171,7 +173,7 @@ async function searchOne(ctx: BrowserContext, term: string, country: string, max
   });
   try {
     const url = `https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=${country}`
-      + `&q=${encodeURIComponent(term)}&search_type=keyword_unordered&media_type=all`;
+      + `&q=${encodeURIComponent(term)}&search_type=keyword_unordered&media_type=${media}`;
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
     await page.waitForLoadState("networkidle", { timeout: 20000 }).catch(() => {});
     if (/login|checkpoint/.test(page.url())) throw new Blocked("mur de connexion");
@@ -192,7 +194,7 @@ async function searchOne(ctx: BrowserContext, term: string, country: string, max
 
     // Pages suivantes : défilement (Facebook charge ~30 pubs à la fois)
     let still = 0;
-    while (seen.size < max && lastHasNext && still < 5) {
+    while (seen.size < max && lastHasNext && !limited && still < 5) {
       const before = seen.size;
       await page.mouse.move(640, 450);
       await page.mouse.wheel(0, 6000);
@@ -207,8 +209,8 @@ async function searchOne(ctx: BrowserContext, term: string, country: string, max
       still = seen.size === before ? still + 1 : 0;
     }
     if (process.env.LIB_DEBUG_DIR && seen.size < max) {
-      console.log(`  (arrêt à ${seen.size} : suite=${lastHasNext}, sans nouveauté=${still})`);
-      if (still >= 5) await debugDump(page, `scroll-${country}-${term}`);
+      console.log(`  (arrêt à ${seen.size} : suite=${lastHasNext}, limité=${limited}, sans nouveauté=${still})`);
+      if (still >= 5 && !limited) await debugDump(page, `scroll-${country}-${term}`);
     }
     return [...seen.values()].slice(0, max);
   } finally {
@@ -289,6 +291,8 @@ async function storeImages(browser: Browser, items: Parsed[], limit: number, log
 
 export async function collectLibrary(log: Log = console.log) {
   const countries = (process.env.LIB_COUNTRIES || "US,CA").split(",").map((c) => c.trim()).filter(Boolean);
+  // Chaque format (toutes, vidéo, image) donne un autre « top 30 » : plus de pubs même si Facebook bloque la page 2
+  const medias = (process.env.LIB_MEDIA_TYPES || "all,video,image").split(",").map((m) => m.trim()).filter(Boolean);
   const max = Number(process.env.LIB_MAX_PER_TERM || 200);
   const maxBlocks = Number(process.env.LIB_MAX_BLOCKS || 3);
   const now = new Date().toISOString();
@@ -307,15 +311,15 @@ export async function collectLibrary(log: Log = console.log) {
 
   try {
     outer: for (const country of countries) {
-      for (const { term } of keywords ?? []) {
+      for (const { term } of keywords ?? []) for (const media of medias) {
         let ads: LibAd[] | null = null;
         for (let attempt = 1; attempt <= 2 && !ads; attempt++) {
           try {
-            ads = await searchOne(ctx, term, country, max);
+            ads = await searchOne(ctx, term, country, media, max);
             blocks = 0;
           } catch (e) {
             blocks++;
-            log(`✗ ${country} « ${term} » (essai ${attempt}) : ${errMsg(e)}`);
+            log(`✗ ${country} « ${term} » ${media} (essai ${attempt}) : ${errMsg(e)}`);
             if (blocks >= maxBlocks) {
               log(`✗ Facebook bloque (${blocks} fois de suite) : arrêt, on garde ce qui est pris`);
               break outer;
@@ -336,7 +340,7 @@ export async function collectLibrary(log: Log = console.log) {
           (terms.get(p.id) ?? terms.set(p.id, new Set()).get(p.id)!).add(term);
           (seenIn.get(p.id) ?? seenIn.set(p.id, new Set()).get(p.id)!).add(country);
         });
-        log(`✓ ${country} « ${term} » : ${ads.length} pubs`);
+        log(`✓ ${country} « ${term} » ${media} : ${ads.length} pubs`);
         await new Promise((r) => setTimeout(r, 3000 + Math.random() * 4000));
       }
     }
