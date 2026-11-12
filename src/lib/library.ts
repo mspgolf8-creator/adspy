@@ -13,6 +13,7 @@ import { chromium, type Browser, type BrowserContext, type Page } from "playwrig
 import { db } from "./supabase";
 import { errMsg } from "./errors";
 import { downloadThumb, storeThumb } from "./media";
+import { wellFormed } from "./rules";
 
 type Log = (msg: string) => void;
 const BUCKET = "ad-media";
@@ -252,7 +253,7 @@ async function saveBatch(items: Parsed[], terms: Map<string, Set<string>>, count
     };
     return row;
   });
-  const { error: e2 } = await db().from("ads").upsert(rows, { onConflict: "id" });
+  const { error: e2 } = await db().from("ads").upsert(wellFormed(rows), { onConflict: "id" });
   if (e2) throw e2;
 }
 

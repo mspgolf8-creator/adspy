@@ -200,7 +200,8 @@ export function firstSentence(text: string): string | null {
   if (!line) return null;
   const m = line.match(/^.+?[.!?…](?=\s|$)/u);
   const s = (m ? m[0] : line).trim();
-  return s.length > 180 ? s.slice(0, 177) + "…" : s;
+  const chars = Array.from(s); // coupe par caractère complet (jamais un emoji en deux)
+  return chars.length > 180 ? chars.slice(0, 177).join("") + "…" : s;
 }
 
 export function classifyByRules(ad: RuleInput): RuleResult {
@@ -259,4 +260,12 @@ export function explain(text: string) {
     if (hits.length) out[`angle: ${angle}`] = hits;
   }
   return out;
+}
+
+/** Retire les demi-emojis isolés (Supabase refuse ces caractères cassés). */
+export function wellFormed<T>(v: T): T {
+  if (typeof v === "string") return v.replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, "") as T;
+  if (Array.isArray(v)) return v.map(wellFormed) as T;
+  if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, wellFormed(x)])) as T;
+  return v;
 }

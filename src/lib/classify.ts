@@ -9,7 +9,7 @@ import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
 import { db } from "./supabase";
 import { ANGLES, CATEGORIES } from "./categories";
-import { classifyByRules } from "./rules";
+import { classifyByRules, wellFormed } from "./rules";
 import { errMsg } from "./errors";
 
 type Mode = "rules" | "hybrid" | "ai";
@@ -32,7 +32,7 @@ type Log = (msg: string) => void;
 
 async function applyRules(ads: AdText[]) {
   const now = new Date().toISOString();
-  const rows = ads.map((ad) => ({ id: ad.id, ...classifyByRules(ad), classified_at: now, classified_by: "rules" }));
+  const rows = ads.map((ad) => wellFormed({ id: ad.id, ...classifyByRules(ad), classified_at: now, classified_by: "rules" }));
   for (let i = 0; i < rows.length; i += 200) {
     const { error } = await db().from("ads").upsert(rows.slice(i, i + 200), { onConflict: "id" });
     if (error) throw error;
