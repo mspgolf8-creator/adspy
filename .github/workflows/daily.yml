@@ -29,9 +29,10 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
           META_API_VERSION: v27.0
-          META_COUNTRIES: FR,DE,NL,BE,ES,IT,SE,DK,IE,AT
+          META_COUNTRIES: FR,DE,NL,BE,ES,IT,SE,DK,IE,AT,GB
           META_MAX_PER_TERM: "500"
           CLASSIFY_MODE: rules
           MEDIA_LIMIT: "250"
           PAGE_LIMIT: "150"
           VIDEO_LIMIT: "200"
+          CLEANUP_DAYS: "30"

@@ -15,6 +15,10 @@ async function main() {
     const r = await collect();
     console.log(`→ ${r.upserted} pubs sauvegardées, ${r.deactivated} marquées inactives`);
   }
+  if (task === "cleanup" || task === "daily") {
+    const { cleanup } = await import("../src/lib/cleanup");
+    await cleanup().catch((e) => console.log("✗ ménage :", errMsg(e)));
+  }
   if (task === "collect" || task === "stats" || task === "daily") await refreshStats();
   if (task === "classify" || task === "daily") {
     console.log("Classement des pubs…");
@@ -33,8 +37,8 @@ async function main() {
     const { fetchPageTypes } = await import("../src/lib/pages");
     await fetchPageTypes().catch((e) => console.log("✗ types de page :", errMsg(e)));
   }
-  if (!["collect", "classify", "media", "pages", "stats", "daily"].includes(task)) {
-    console.log("Usage : npm run collect | classify | media | pages | stats | daily");
+  if (!["collect", "classify", "media", "pages", "stats", "cleanup", "daily"].includes(task)) {
+    console.log("Usage : npm run collect | classify | media | pages | stats | cleanup | daily");
     process.exitCode = 1;
   }
 }

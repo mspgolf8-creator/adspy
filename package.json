@@ -12,7 +12,8 @@
     "daily": "tsx scripts/run.ts daily",
     "media": "tsx scripts/run.ts media",
     "pages": "tsx scripts/run.ts pages",
-    "stats": "tsx scripts/run.ts stats"
+    "stats": "tsx scripts/run.ts stats",
+    "cleanup": "tsx scripts/run.ts cleanup"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",

@@ -61,7 +61,7 @@ export function metaConfig() {
   return {
     token,
     version: process.env.META_API_VERSION || "v27.0",
-    countries: (process.env.META_COUNTRIES || "FR,DE,NL,BE,ES,IT,SE,DK,IE,AT")
+    countries: (process.env.META_COUNTRIES || "FR,DE,NL,BE,ES,IT,SE,DK,IE,AT,GB")
       .split(",")
       .map((c) => c.trim().toUpperCase())
       .filter(Boolean),
