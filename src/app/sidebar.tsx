@@ -20,7 +20,12 @@ export function Sidebar({ folders }: { folders: Folder[] }) {
   const [adding, setAdding] = useState(false);
   // Barre réduite (icônes seulement) : retenue dans le navigateur
   const [small, setSmall] = useState(false);
-  useEffect(() => setSmall(document.documentElement.dataset.sidebar === "small"), []);
+  // Avant que la page soit prête, on ne connaît pas encore le mode : contenu caché pour éviter un flash laid
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    setSmall(document.documentElement.dataset.sidebar === "small");
+    setReady(true);
+  }, []);
   const toggle = () => {
     const next = !small;
     setSmall(next);
@@ -30,30 +35,29 @@ export function Sidebar({ folders }: { folders: Folder[] }) {
     } catch {}
   };
   const item = (active: boolean) =>
-    `flex items-center gap-3 rounded-lg py-2 text-[15px] font-semibold transition ${small ? "justify-center px-0" : "px-3"} ${
+    `flex items-center gap-3 rounded-xl text-[15px] font-semibold outline-none transition focus-visible:ring-2 focus-visible:ring-white/60 ${small ? "mx-auto h-11 w-11 justify-center" : "px-3 py-2"} ${
       active ? "bg-white/20" : "hover:bg-white/10"
     }`;
   return (
     <>
       {/* Ordinateur : barre bleue à gauche */}
-      <aside className="fixed inset-y-0 left-0 z-20 hidden w-[var(--sb)] flex-col bg-gradient-to-b from-[#2f4fe0] to-[#2a44c4] px-3 py-5 text-white transition-[width] lg:flex">
-        <div className={`mb-6 flex items-start gap-2 ${small ? "flex-col items-center" : "px-3"}`}>
-          <Link href="/" className="min-w-0 flex-1">
-            {small ? (
-              <div className="grid h-10 w-10 place-items-center rounded-xl bg-white/15 text-xl font-bold">a</div>
-            ) : (
-              <>
-                <div className="text-2xl font-bold tracking-tight">adspy</div>
-                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">Discover ads</div>
-              </>
-            )}
-          </Link>
-          <button onClick={toggle} title={small ? "Agrandir la barre" : "Réduire la barre"}
-            className={`rounded-md border border-white/30 p-1 text-white/70 hover:bg-white/10 hover:text-white ${small ? "mt-2" : "mt-1"}`}>
-            <svg className={`h-4 w-4 transition ${small ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m14 7-5 5 5 5" /></svg>
-          </button>
-        </div>
-        <nav className="flex flex-col gap-1">
+      <aside className={`fixed inset-y-0 left-0 z-20 hidden w-[var(--sb)] flex-col bg-gradient-to-b from-[#2f4fe0] to-[#2a44c4] whitespace-nowrap px-3 py-5 text-white transition-[width] lg:flex ${ready ? "" : "[&>*]:invisible"}`}>
+        {/* Bouton réduire / agrandir : pastille ronde à cheval sur le bord droit */}
+        <button onClick={toggle} title={small ? "Agrandir la barre" : "Réduire la barre"} aria-label={small ? "Agrandir la barre" : "Réduire la barre"}
+          className="absolute -right-3 top-8 grid h-6 w-6 place-items-center rounded-full border border-slate-200 bg-white text-[#2f4fe0] shadow-md outline-none transition hover:scale-110 focus-visible:ring-2 focus-visible:ring-white">
+          <svg className={`h-3.5 w-3.5 transition ${small ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m14 7-5 5 5 5" /></svg>
+        </button>
+        <Link href="/" className={`mb-6 block outline-none ${small ? "mx-auto" : "px-3"}`}>
+          {small ? (
+            <div className="grid h-11 w-11 place-items-center rounded-xl bg-white/15 text-xl font-bold">a</div>
+          ) : (
+            <>
+              <div className="text-2xl font-bold tracking-tight">adspy</div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">Discover ads</div>
+            </>
+          )}
+        </Link>
+        <nav className={`flex flex-col overflow-hidden ${small ? "gap-2" : "gap-1"}`}>
           {NAV.map(({ href, label, icon: Icon, match }) => (
             <div key={href}>
               <Link href={href} title={small ? label : undefined} className={item(match(path, saved, openFolder))}>
