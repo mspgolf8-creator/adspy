@@ -21,8 +21,8 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           LIB_DRY: "1"
-          LIB_TERMS: "free shipping,bestseller,50% off"
-          LIB_COUNTRIES: US,CA
+          LIB_TERMS: "free shipping"
+          LIB_COUNTRIES: US
           LIB_MAX_PER_TERM: "200"
           LIB_DEBUG_DIR: debug
       - uses: actions/upload-artifact@v4

@@ -156,6 +156,10 @@ async function searchOne(ctx: BrowserContext, term: string, country: string, max
   page.on("response", async (r) => {
     if (!r.url().includes("/api/graphql")) return;
     const text = await r.text().catch(() => "");
+    if (process.env.LIB_DEBUG_DIR) {
+      const name = new URLSearchParams(r.request().postData() ?? "").get("fb_api_req_friendly_name");
+      console.log(`  gql ${name} ${r.status()} ${text.length}o ${text.includes("ad_archive_id") ? "" : text.slice(0, 160).replace(/\s+/g, " ")}`);
+    }
     if (!text.includes("ad_archive_id")) return;
     for (const j of parseLines(text)) {
       const found = findResults(j);
@@ -195,7 +199,10 @@ async function searchOne(ctx: BrowserContext, term: string, country: string, max
       await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
       // Selon la version de la page, Facebook charge la suite au défilement ou avec un bouton « See more »
       const more = page.locator('[role="button"]', { hasText: /^\s*(See more|Voir plus|Afficher plus)\s*$/ }).last();
-      if (await more.isVisible().catch(() => false)) await more.click({ timeout: 5000 }).catch(() => {});
+      if (await more.isVisible().catch(() => false)) {
+        await more.click({ timeout: 5000 }).catch((e) => process.env.LIB_DEBUG_DIR && console.log(`  clic raté : ${errMsg(e)}`));
+        if (process.env.LIB_DEBUG_DIR) console.log("  clic See more");
+      }
       await page.waitForTimeout(2000 + Math.random() * 1500);
       still = seen.size === before ? still + 1 : 0;
     }
