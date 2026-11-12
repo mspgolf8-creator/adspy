@@ -1,4 +1,4 @@
-// Usage : npm run collect | classify | media | pages | stats | daily (= tout)
+// Usage : npm run collect | us | classify | media | pages | stats | daily (= tout)
 import { config } from "dotenv";
 config({ path: ".env.local" });
 
@@ -15,11 +15,16 @@ async function main() {
     const r = await collect();
     console.log(`→ ${r.upserted} pubs sauvegardées, ${r.deactivated} marquées inactives`);
   }
+  if (task === "us" || task === "daily") {
+    console.log("Collecte US / Canada (bibliothèque publique)…");
+    const { collectLibrary } = await import("../src/lib/library");
+    await collectLibrary().catch((e) => console.log("✗ US/CA :", errMsg(e)));
+  }
   if (task === "cleanup" || task === "daily") {
     const { cleanup } = await import("../src/lib/cleanup");
     await cleanup().catch((e) => console.log("✗ ménage :", errMsg(e)));
   }
-  if (task === "collect" || task === "stats" || task === "daily") await refreshStats();
+  if (task === "collect" || task === "us" || task === "stats" || task === "daily") await refreshStats();
   if (task === "classify" || task === "daily") {
     console.log("Classement des pubs…");
     // Un échec ici ne doit pas empêcher les visuels et les pages de passer
@@ -39,8 +44,8 @@ async function main() {
     const { fetchPageTypes } = await import("../src/lib/pages");
     await fetchPageTypes().catch((e) => console.log("✗ types de page :", errMsg(e)));
   }
-  if (!["collect", "classify", "media", "pages", "stats", "cleanup", "daily"].includes(task)) {
-    console.log("Usage : npm run collect | classify | media | pages | stats | cleanup | daily");
+  if (!["collect", "us", "classify", "media", "pages", "stats", "cleanup", "daily"].includes(task)) {
+    console.log("Usage : npm run collect | us | classify | media | pages | stats | cleanup | daily");
     process.exitCode = 1;
   }
 }

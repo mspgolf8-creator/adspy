@@ -1,0 +1,26 @@
+name: Test US / Canada
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Lecture de la bibliothèque (sans sauvegarde)
+        run: npx tsx -e 'import("./src/lib/library").then(m=>m.collectLibrary())'
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          LIB_DRY: "1"
+          LIB_TERMS: "free shipping,bestseller,50% off"
+          LIB_COUNTRIES: US,CA
+          LIB_MAX_PER_TERM: "200"

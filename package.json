@@ -13,6 +13,7 @@
     "media": "tsx scripts/run.ts media",
     "pages": "tsx scripts/run.ts pages",
     "stats": "tsx scripts/run.ts stats",
+    "us": "tsx scripts/run.ts us",
     "cleanup": "tsx scripts/run.ts cleanup"
   },
   "dependencies": {
