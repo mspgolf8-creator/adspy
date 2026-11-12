@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { CHANNELS, STAR_LEVELS, appliedFilters, countryName, flag, hrefWith, languageName, list, type Search } from "@/lib/filters";
 import {
@@ -85,6 +85,13 @@ function Pill({ base, icon, label, count, onClear, children, wide }: {
       document.removeEventListener("keydown", esc);
     };
   }, [base]);
+  // Menu près du bord droit : on l'aligne à droite pour qu'il reste dans l'écran (sinon la page se décale)
+  const [alignRight, setAlignRight] = useState(false);
+  useLayoutEffect(() => {
+    if (!base.open || !ref.current) return;
+    const menuWidth = wide ? 288 : 256;
+    setAlignRight(ref.current.getBoundingClientRect().left + menuWidth > document.documentElement.clientWidth - 16);
+  }, [base.open, wide]);
   const active = count > 0;
   return (
     <div ref={ref} className="relative">
@@ -101,7 +108,7 @@ function Pill({ base, icon, label, count, onClear, children, wide }: {
         )}
       </div>
       {base.open && (
-        <div className={`absolute left-0 top-full z-30 mt-2 rounded-xl border border-white/10 bg-[#1c1c22] p-3 shadow-2xl shadow-black/60 ${wide ? "w-72" : "w-64"}`}>
+        <div className={`absolute ${alignRight ? "right-0" : "left-0"} top-full z-30 mt-2 rounded-xl border border-white/10 bg-[#1c1c22] p-3 shadow-2xl shadow-black/60 ${wide ? "w-72" : "w-64"}`}>
           {children}
         </div>
       )}

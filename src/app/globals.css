@@ -7,3 +7,6 @@
 /* Largeur de la barre bleue (réduite = icônes seulement) */
 :root { --sb: 15rem; }
 :root[data-sidebar="small"] { --sb: 4.5rem; }
+
+/* Jamais de défilement horizontal : un menu qui dépasse ne doit pas décaler toute la page */
+html, body { overflow-x: clip; }
