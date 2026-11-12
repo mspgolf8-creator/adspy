@@ -194,7 +194,7 @@ async function searchOne(ctx: BrowserContext, term: string, country: string, max
       await page.mouse.wheel(0, 6000);
       await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
       // Selon la version de la page, Facebook charge la suite au défilement ou avec un bouton « See more »
-      const more = page.getByText(/^(See more|Voir plus|Afficher plus)$/).last();
+      const more = page.locator('[role="button"]', { hasText: /^\s*(See more|Voir plus|Afficher plus)\s*$/ }).last();
       if (await more.isVisible().catch(() => false)) await more.click({ timeout: 5000 }).catch(() => {});
       await page.waitForTimeout(2000 + Math.random() * 1500);
       still = seen.size === before ? still + 1 : 0;
