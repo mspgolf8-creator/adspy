@@ -22,8 +22,10 @@ async function main() {
   if (task === "collect" || task === "stats" || task === "daily") await refreshStats();
   if (task === "classify" || task === "daily") {
     console.log("Classement des pubs…");
-    const r = await classifyPending();
-    console.log(`→ ${r.classified} classées, ${r.failed} en échec`);
+    // Un échec ici ne doit pas empêcher les visuels et les pages de passer
+    await classifyPending()
+      .then((r) => console.log(`→ ${r.classified} classées, ${r.failed} en échec`))
+      .catch((e) => console.log("✗ classement :", errMsg(e)));
   }
   if (task === "media" || task === "daily") {
     console.log("Visuels des pubs…");

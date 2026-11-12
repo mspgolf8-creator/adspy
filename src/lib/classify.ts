@@ -33,8 +33,8 @@ type Log = (msg: string) => void;
 async function applyRules(ads: AdText[]) {
   const now = new Date().toISOString();
   const rows = ads.map((ad) => ({ id: ad.id, ...classifyByRules(ad), classified_at: now, classified_by: "rules" }));
-  for (let i = 0; i < rows.length; i += 500) {
-    const { error } = await db().from("ads").upsert(rows.slice(i, i + 500), { onConflict: "id" });
+  for (let i = 0; i < rows.length; i += 200) {
+    const { error } = await db().from("ads").upsert(rows.slice(i, i + 200), { onConflict: "id" });
     if (error) throw error;
   }
   return rows.length;
