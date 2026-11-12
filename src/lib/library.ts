@@ -60,6 +60,17 @@ function findResults(node: unknown, out: LibAd[] = [], depth = 0): LibAd[] {
   return out;
 }
 
+function findKey(node: unknown, key: string, depth = 0): unknown {
+  if (!node || typeof node !== "object" || depth > 40) return null;
+  const o = node as Record<string, unknown>;
+  if (key in o) return o[key];
+  for (const v of Object.values(o)) {
+    const r = findKey(v, key, depth + 1);
+    if (r) return r;
+  }
+  return null;
+}
+
 /** Les réponses GraphQL de Facebook sont parfois plusieurs JSON collés (une par ligne). */
 function parseLines(text: string): unknown[] {
   const clean = text.replace(/^for \(;;\);/, "");
@@ -147,9 +158,11 @@ async function searchOne(ctx: BrowserContext, term: string, country: string, max
     const text = await r.text().catch(() => "");
     if (!text.includes("ad_archive_id")) return;
     for (const j of parseLines(text)) {
-      add(findResults(j));
-      const info = JSON.stringify(j).match(/"has_next_page":(true|false)/);
-      if (info) lastHasNext = info[1] === "true";
+      const found = findResults(j);
+      if (!found.length) continue;
+      add(found);
+      const conn = findKey(j, "search_results_connection") as { page_info?: { has_next_page?: boolean } } | null;
+      if (typeof conn?.page_info?.has_next_page === "boolean") lastHasNext = conn.page_info.has_next_page;
     }
   });
   try {
@@ -175,11 +188,17 @@ async function searchOne(ctx: BrowserContext, term: string, country: string, max
 
     // Pages suivantes : défilement (Facebook charge ~30 pubs à la fois)
     let still = 0;
-    while (seen.size < max && lastHasNext && still < 4) {
+    while (seen.size < max && lastHasNext && still < 5) {
       const before = seen.size;
-      await page.mouse.wheel(0, 12000);
-      await page.waitForTimeout(1800 + Math.random() * 1200);
+      await page.mouse.move(640, 450);
+      await page.mouse.wheel(0, 6000);
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+      await page.waitForTimeout(2000 + Math.random() * 1500);
       still = seen.size === before ? still + 1 : 0;
+    }
+    if (process.env.LIB_DEBUG_DIR && seen.size < max) {
+      console.log(`  (arrêt à ${seen.size} : suite=${lastHasNext}, sans nouveauté=${still})`);
+      if (still >= 5) await debugDump(page, `scroll-${country}-${term}`);
     }
     return [...seen.values()].slice(0, max);
   } finally {
