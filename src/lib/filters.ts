@@ -113,3 +113,6 @@ function range(min?: string, max?: string, unit = "") {
   if (min) return `${min}${unit && ` ${unit}`} +`;
   return `≤ ${max}${unit && ` ${unit}`}`;
 }
+
+/** Pré-filtre : ce qui entre dans l'adspy (Explore) et ce dont on capture le visuel. */
+export const PREFILTER = { stars: 3, days: 7, brandAds: 100 };

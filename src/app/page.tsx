@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { db, isConfigured, ScoredAd } from "@/lib/supabase";
 import { PAGE_TYPES } from "@/lib/categories";
-import { hrefWith, LIB_COUNTRIES, list, num, SORT_COLUMNS, SORTS, type Search, type SortKey } from "@/lib/filters";
+import { hrefWith, LIB_COUNTRIES, list, num, PREFILTER, SORT_COLUMNS, SORTS, type Search, type SortKey } from "@/lib/filters";
 import type { Folder } from "./actions";
 import { SetupNotice } from "./setup-notice";
 import { AdCard } from "./ad-card";
@@ -47,7 +47,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
   else if (sp.status !== "all" && !inSwipe) query = query.eq("is_active", true);
   if (sp.brand) query = query.eq("page_id", sp.brand);
   // Jamais de carte « Visuel à venir » : une pub apparaît quand son visuel est prêt (sauf dans tes dossiers)
-  if (!inSwipe) query = query.not("media_url", "is", null);
+  if (!inSwipe) query = prefilter(query.not("media_url", "is", null));
 
   const perf = list(sp, "perf").map(Number).filter((n) => n >= 1 && n <= 5);
   if (perf.length) query = query.in("stars", perf);
@@ -95,7 +95,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
     db().from("facet_countries").select("code, n"),
     db().from("facet_languages").select("code, n"),
     db().from("facet_page_types").select("page_type, n"),
-    db().from("ads").select("id", { count: "exact", head: true }).eq("is_active", true),
+    prefilter(db().from("ads_scored").select("id", { count: "exact", head: true }).eq("is_active", true).not("media_url", "is", null)),
     sp.brand ? db().from("ads").select("page_name").eq("page_id", sp.brand).limit(1).maybeSingle() : Promise.resolve({ data: null }),
     db().from("folder_counts").select("id, name, n"),
     db().from("tag_counts").select("tag, n"),
@@ -112,7 +112,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
     const { data: one } = await db().from("ads_scored").select("*").eq("id", sp.ad).maybeSingle();
     selected = (one as ScoredAd) ?? null;
     if (selected?.category) {
-      let sim = db().from("ads_scored").select("*").eq("is_active", true).not("media_url", "is", null).eq("category", selected.category).neq("id", selected.id);
+      let sim = prefilter(db().from("ads_scored").select("*").eq("is_active", true).not("media_url", "is", null)).eq("category", selected.category).neq("id", selected.id);
       if (selected.page_id) sim = sim.neq("page_id", selected.page_id);
       const { data: s } = await sim.order("eu_total_reach", { ascending: false, nullsFirst: false }).limit(4);
       similar = (s ?? []) as ScoredAd[];
@@ -202,4 +202,13 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
       )}
     </div>
   );
+}
+
+/**
+ * Pré-filtre de l'adspy : seules les pubs qui valent la peine entrent dans Explore
+ * (3 étoiles et +, 7 jours et +, marque avec 100 pubs actives et +). Tes dossiers montrent tout.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function prefilter<Q extends { gte: (col: string, v: number) => any }>(q: Q): Q {
+  return q.gte("stars", PREFILTER.stars).gte("days_running", PREFILTER.days).gte("page_active_ads", PREFILTER.brandAds);
 }

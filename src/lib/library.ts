@@ -145,7 +145,7 @@ function toParsed(ad: LibAd, country: string, rank: number) {
 
 class Blocked extends Error {}
 
-async function newContext(browser: Browser) {
+export async function newContext(browser: Browser) {
   return browser.newContext({ locale: "en-US", userAgent: UA, viewport: { width: 1280, height: 900 }, timezoneId: "America/New_York" });
 }
 

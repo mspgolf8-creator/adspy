@@ -3,7 +3,7 @@
  * Pubs commerciales : seulement celles diffusées dans l'UE (règle DSA).
  */
 
-const FIELDS = [
+export const FIELDS = [
   "id",
   "page_id",
   "page_name",
@@ -37,7 +37,7 @@ export type MetaAd = {
   age_country_gender_reach_breakdown?: { country: string; age_gender_breakdowns?: Record<string, number | string>[] }[];
 };
 
-type MetaPage = {
+export type MetaPage = {
   data?: MetaAd[];
   paging?: { next?: string };
   error?: { message: string; code: number; error_subcode?: number };
@@ -108,7 +108,7 @@ export async function* searchActiveAds(term: string): AsyncGenerator<MetaAd[]> {
 }
 
 /** Plus haut % d'utilisation du quota (call_count, total_time, total_cputime) dans le header de Meta. */
-function maxUsagePct(header: string | null): number {
+export function maxUsagePct(header: string | null): number {
   if (!header) return 0;
   try {
     const parsed = JSON.parse(header) as Record<string, { call_count?: number; total_time?: number; total_cputime?: number }[]>;
@@ -122,7 +122,7 @@ function maxUsagePct(header: string | null): number {
 }
 
 /** Réessaie jusqu'à 3 fois si le réseau coupe (Wi-Fi, réveil du Mac…). */
-async function fetchWithRetry(url: string, tries = 3): Promise<Response> {
+export async function fetchWithRetry(url: string, tries = 3): Promise<Response> {
   for (let i = 1; ; i++) {
     try {
       return await fetch(url);

@@ -8,6 +8,7 @@ import sharp from "sharp";
 import { db } from "./supabase";
 import { metaConfig } from "./meta";
 import { errMsg } from "./errors";
+import { PREFILTER } from "./filters";
 import { landingFromSnapshot } from "./pages";
 
 const BUCKET = "ad-media";
@@ -145,6 +146,10 @@ export async function fetchMedia(log: Log = console.log) {
       .eq("is_active", true)
       .eq("source", "api") // les pubs US/CA ont leur visuel via la bibliothèque
       .is("media_tried_at", null)
+      // Seulement les pubs qui passent le pré-filtre (les autres n'apparaissent jamais dans l'adspy)
+      .gte("stars", PREFILTER.stars)
+      .gte("days_running", PREFILTER.days)
+      .gte("page_active_ads", PREFILTER.brandAds)
       .order("winner_score", { ascending: false })
       .order("id")
       .range(ids.length, Math.min(limit, ids.length + 1000) - 1);

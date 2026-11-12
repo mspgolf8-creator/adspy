@@ -41,7 +41,7 @@ function countriesOf(ad: MetaAd): string[] {
 }
 
 /** Sauvegarde un lot de pubs en gardant les mots-clés déjà associés. */
-async function upsertBatch(ads: MetaAd[], term: string, now: string) {
+export async function upsertBatch(ads: MetaAd[], term: string | null, now: string) {
   const ids = ads.map((a) => a.id);
   const { data: existing, error: readErr } = await withRetry(() =>
     db().from("ads").select("id, matched_terms").in("id", ids),
@@ -51,7 +51,7 @@ async function upsertBatch(ads: MetaAd[], term: string, now: string) {
 
   const rows = ads.map((ad) => {
     const prev = termsById.get(ad.id) ?? [];
-    return { ...toRow(ad, now), matched_terms: Array.from(new Set([...prev, term])) };
+    return { ...toRow(ad, now), matched_terms: term ? Array.from(new Set([...prev, term])) : prev };
   });
   const { error } = await withRetry(() => db().from("ads").upsert(rows, { onConflict: "id" }));
   if (error) throw error;

@@ -3,7 +3,11 @@ name: Collecte quotidienne
 on:
   schedule:
     - cron: "0 12 * * *" # 7 h à Montréal (heure normale), 8 h l'été
-  workflow_dispatch: {} # bouton « Run workflow » pour lancer à la main
+  workflow_dispatch: # bouton « Run workflow » pour lancer à la main
+    inputs:
+      task:
+        description: "Étape à lancer (daily = tout ; sinon brands, media, stats, collect, us…)"
+        default: daily
 
 concurrency:
   group: collecte
@@ -23,7 +27,7 @@ jobs:
       - name: Navigateur pour les visuels
         run: npx playwright install --with-deps chromium
       - name: Collecte Europe + US/CA, classement, visuels
-        run: npm run daily
+        run: npx tsx scripts/run.ts ${{ inputs.task || 'daily' }}
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -40,3 +44,5 @@ jobs:
           LIB_COUNTRIES: US,CA
           LIB_MEDIA_TYPES: all,video,image
           LIB_MAX_PER_TERM: "200"
+          BRAND_LIMIT: "800"
+          LIB_BRAND_LIMIT: "300"

@@ -14,6 +14,7 @@
     "pages": "tsx scripts/run.ts pages",
     "stats": "tsx scripts/run.ts stats",
     "us": "tsx scripts/run.ts us",
+    "brands": "tsx scripts/run.ts brands",
     "cleanup": "tsx scripts/run.ts cleanup"
   },
   "dependencies": {
