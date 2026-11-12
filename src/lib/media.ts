@@ -3,7 +3,8 @@
  * (le lien ad_snapshot_url de l'API), photographie le visuel et le range dans Supabase Storage.
  * Les meilleures pubs passent en premier ; MEDIA_LIMIT par passage pour rester discret.
  */
-import { chromium, type Page } from "playwright";
+import { chromium, type Browser, type Page } from "playwright";
+import sharp from "sharp";
 import { db } from "./supabase";
 import { metaConfig } from "./meta";
 import { errMsg } from "./errors";
@@ -12,10 +13,39 @@ import { landingFromSnapshot } from "./pages";
 const BUCKET = "ad-media";
 type Log = (msg: string) => void;
 
+/** Miniature légère : 360 px de large, JPEG ~25 Ko (pour rester dans le 1 Go gratuit de Supabase). */
+export async function toThumb(buf: Buffer | Uint8Array) {
+  return sharp(buf).rotate().resize({ width: 360, withoutEnlargement: true }).jpeg({ quality: 60, mozjpeg: true }).toBuffer();
+}
+
+/** Télécharge une image fbcdn et en fait une miniature (null si impossible). */
+export async function downloadThumb(url: string): Promise<Buffer | null> {
+  try {
+    const r = await fetch(url, { signal: AbortSignal.timeout(15000) });
+    if (!r.ok) return null;
+    return await toThumb(Buffer.from(await r.arrayBuffer()));
+  } catch {
+    return null;
+  }
+}
+
+/** Range une miniature dans Supabase Storage et renvoie son lien public. */
+export async function storeThumb(id: string, jpeg: Buffer) {
+  const path = `${id}.jpg`;
+  const up = await db().storage.from(BUCKET).upload(path, jpeg, { contentType: "image/jpeg", upsert: true });
+  if (up.error) throw up.error;
+  return db().storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+}
+
 async function capture(page: Page, adId: string, token: string) {
   const url = `https://www.facebook.com/ads/archive/render_ad/?id=${adId}&access_token=${token}`;
-  await page.goto(url, { waitUntil: "networkidle", timeout: 30000 }).catch(() => {});
+  await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 }).catch(() => {});
   if (/login|checkpoint/.test(page.url())) throw new Error("Meta demande une connexion : arrêt");
+  // Attend qu'un visuel apparaisse (au lieu d'attendre la fin de tout le réseau)
+  await page.waitForFunction(() => [...document.querySelectorAll("video, img")].some((e) => {
+    const r = e.getBoundingClientRect();
+    return r.width >= 150 && r.height >= 150;
+  }), null, { timeout: 15000 }).catch(() => {});
 
   // Le visuel principal : la plus grande vidéo ou image de la page
   const target = await page.evaluate(() => {
@@ -31,10 +61,15 @@ async function capture(page: Page, adId: string, token: string) {
   if (!target) return { landing, kind: null, jpeg: null, video: null };
   const video = target === "video" ? await videoOf(page) : null;
 
+  // Rapide : on télécharge directement l'image (ou l'aperçu de la vidéo) ; sinon capture d'écran
   const el = page.locator("[data-adspy='1']");
-  if (target === "image") await el.evaluate((img: HTMLImageElement) => img.decode?.().catch(() => {}));
-  else await page.waitForTimeout(1500); // laisser l'aperçu de la vidéo s'afficher
-  const jpeg = await el.screenshot({ type: "jpeg", quality: 70, timeout: 10000 });
+  const src = await el.evaluate((e) => (e instanceof HTMLVideoElement ? e.poster : (e as HTMLImageElement).currentSrc || (e as HTMLImageElement).src) || null);
+  let jpeg = src?.startsWith("http") ? await downloadThumb(src) : null;
+  if (!jpeg) {
+    if (target === "image") await el.evaluate((img: HTMLImageElement) => img.decode?.().catch(() => {}));
+    else await page.waitForTimeout(1500); // laisser l'aperçu de la vidéo s'afficher
+    jpeg = await toThumb(await el.screenshot({ type: "jpeg", quality: 80, timeout: 10000 }));
+  }
   return { landing, kind: target, jpeg, video };
 }
 
@@ -97,28 +132,39 @@ export async function refreshVideos(log: Log = console.log) {
 }
 
 export async function fetchMedia(log: Log = console.log) {
-  const limit = Number(process.env.MEDIA_LIMIT || 250);
+  const limit = Number(process.env.MEDIA_LIMIT || 4000);
+  const workers = Number(process.env.MEDIA_CONCURRENCY || 6);
   const { token } = metaConfig();
 
-  const { data, error } = await db()
-    .from("ads_scored")
-    .select("id")
-    .eq("is_active", true)
-    .eq("source", "api") // les pubs US/CA ont leur visuel via la bibliothèque
-    .is("media_tried_at", null)
-    .order("winner_score", { ascending: false })
-    .limit(limit);
-  if (error) throw error;
-  const ids = (data ?? []).map((r) => r.id as string);
+  // Par paquets de 1 000 (limite de Supabase par requête)
+  const ids: string[] = [];
+  while (ids.length < limit) {
+    const { data, error } = await db()
+      .from("ads_scored")
+      .select("id")
+      .eq("is_active", true)
+      .eq("source", "api") // les pubs US/CA ont leur visuel via la bibliothèque
+      .is("media_tried_at", null)
+      .order("winner_score", { ascending: false })
+      .order("id")
+      .range(ids.length, Math.min(limit, ids.length + 1000) - 1);
+    if (error) throw error;
+    ids.push(...(data ?? []).map((r) => r.id as string));
+    if ((data ?? []).length < 1000) break;
+  }
   if (!ids.length) return log("✓ visuels : rien de nouveau");
 
-  const browser = await chromium.launch();
-  const page = await browser.newPage({ viewport: { width: 420, height: 900 }, locale: "fr-FR" });
+  const browser: Browser = await chromium.launch();
   let ok = 0;
   let none = 0;
   let failed = 0;
-  try {
-    for (const id of ids) {
+  let stop = false;
+  const queue = [...ids];
+
+  async function worker() {
+    const page = await browser.newPage({ viewport: { width: 420, height: 900 }, locale: "fr-FR" });
+    while (!stop && queue.length) {
+      const id = queue.shift()!;
       try {
         const shot = await capture(page, id, token);
         const now = new Date().toISOString();
@@ -126,10 +172,7 @@ export async function fetchMedia(log: Log = console.log) {
           none++;
           await db().from("ads").update({ media_tried_at: now, landing_url: shot.landing }).eq("id", id);
         } else {
-          const path = `${id}.jpg`;
-          const up = await db().storage.from(BUCKET).upload(path, shot.jpeg, { contentType: "image/jpeg", upsert: true });
-          if (up.error) throw up.error;
-          const media_url = db().storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+          const media_url = await storeThumb(id, shot.jpeg);
           await db().from("ads").update({
             media_url, media_kind: shot.kind, media_tried_at: now, landing_url: shot.landing,
             video_url: shot.video?.url ?? null, video_expires_at: shot.video?.expires ?? null,
@@ -139,16 +182,20 @@ export async function fetchMedia(log: Log = console.log) {
       } catch (e) {
         failed++;
         const msg = errMsg(e);
-        log(`✗ visuel ${id} : ${msg}`);
-        if (/connexion : arrêt/.test(msg) || failed >= 15) {
+        if (failed <= 5) log(`✗ visuel ${id} : ${msg}`);
+        if (/connexion : arrêt/.test(msg) || failed >= 60) {
           log("✗ trop d'échecs, on arrête les visuels pour cette fois");
-          break;
+          stop = true;
         }
       }
-      await page.waitForTimeout(1200 + Math.random() * 1500);
     }
+    await page.close().catch(() => {});
+  }
+
+  try {
+    await Promise.all(Array.from({ length: workers }, worker));
   } finally {
     await browser.close();
   }
-  log(`✓ visuels : ${ok} capturés, ${none} sans visuel, ${failed} en échec`);
+  log(`✓ visuels : ${ok} capturés, ${none} sans visuel, ${failed} en échec (${queue.length} restants)`);
 }

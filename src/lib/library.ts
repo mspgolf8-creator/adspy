@@ -12,6 +12,7 @@
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
 import { db } from "./supabase";
 import { errMsg } from "./errors";
+import { downloadThumb, storeThumb } from "./media";
 
 type Log = (msg: string) => void;
 const BUCKET = "ad-media";
@@ -255,35 +256,32 @@ async function saveBatch(items: Parsed[], terms: Map<string, Set<string>>, count
   if (e2) throw e2;
 }
 
-/** Télécharge les visuels (les liens fbcdn expirent) : photo réduite en JPEG dans Supabase Storage. */
-async function storeImages(browser: Browser, items: Parsed[], limit: number, log: Log) {
+/** Visuels : téléchargés directement (les liens fbcdn expirent), réduits, rangés dans Supabase Storage. */
+async function storeImages(items: Parsed[], log: Log) {
   const ids = items.map((i) => i.id);
   const have = new Set<string>();
   for (let i = 0; i < ids.length; i += 300) {
     const { data } = await db().from("ads").select("id").in("id", ids.slice(i, i + 300)).not("media_url", "is", null);
     for (const r of data ?? []) have.add(r.id as string);
   }
-  const todo = items.filter((i) => i.image && !have.has(i.id)).sort((a, b) => a.rank - b.rank).slice(0, limit);
-  const page = await browser.newPage({ viewport: { width: 420, height: 900 } });
+  const queue = items.filter((i) => i.image && !have.has(i.id)).sort((a, b) => a.rank - b.rank);
   let ok = 0;
   let failed = 0;
-  for (const it of todo) {
-    try {
-      await page.setContent(`<body style="margin:0;background:#000"><img id="i" src="${it.image!.replace(/"/g, "&quot;")}" style="display:block;width:420px;height:auto"></body>`);
-      const img = page.locator("#i");
-      await img.evaluate((el: HTMLImageElement) => el.decode());
-      const jpeg = await img.screenshot({ type: "jpeg", quality: 70, timeout: 10000 });
-      const path = `${it.id}.jpg`;
-      const { error } = await db().storage.from(BUCKET).upload(path, jpeg, { contentType: "image/jpeg", upsert: true });
-      if (error) throw error;
-      const { data } = db().storage.from(BUCKET).getPublicUrl(path);
-      await db().from("ads").update({ media_url: data.publicUrl, media_tried_at: new Date().toISOString() }).eq("id", it.id);
-      ok++;
-    } catch {
-      failed++;
+  const worker = async () => {
+    while (queue.length) {
+      const it = queue.shift()!;
+      try {
+        const jpeg = await downloadThumb(it.image!);
+        if (!jpeg) throw new Error("image illisible");
+        const media_url = await storeThumb(it.id, jpeg);
+        await db().from("ads").update({ media_url, media_tried_at: new Date().toISOString() }).eq("id", it.id);
+        ok++;
+      } catch {
+        failed++;
+      }
     }
-  }
-  await page.close();
+  };
+  await Promise.all(Array.from({ length: 8 }, worker));
   log(`✓ visuels US/CA : ${ok} enregistrés${failed ? `, ${failed} en échec` : ""}`);
 }
 
@@ -353,7 +351,7 @@ export async function collectLibrary(log: Log = console.log) {
     }
     for (let i = 0; i < items.length; i += 200) await saveBatch(items.slice(i, i + 200), terms, seenIn, now);
     log(`→ US/CA : ${items.length} pubs sauvegardées`);
-    await storeImages(browser, items, Number(process.env.LIB_MEDIA_LIMIT || 400), log).catch((e) => log(`✗ visuels US/CA : ${errMsg(e)}`));
+    await storeImages(items, log).catch((e) => log(`✗ visuels US/CA : ${errMsg(e)}`));
     return items.length;
   } finally {
     await browser.close().catch(() => {});

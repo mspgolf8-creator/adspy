@@ -32,11 +32,11 @@ jobs:
           META_COUNTRIES: FR,DE,NL,BE,ES,IT,SE,DK,IE,AT,GB
           META_MAX_PER_TERM: "500"
           CLASSIFY_MODE: rules
-          MEDIA_LIMIT: "250"
+          MEDIA_LIMIT: "3000"
+          MEDIA_CONCURRENCY: "8"
           PAGE_LIMIT: "150"
           VIDEO_LIMIT: "200"
           CLEANUP_DAYS: "30"
           LIB_COUNTRIES: US,CA
           LIB_MEDIA_TYPES: all,video,image
           LIB_MAX_PER_TERM: "200"
-          LIB_MEDIA_LIMIT: "400"

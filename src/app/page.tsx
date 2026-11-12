@@ -46,6 +46,8 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
   if (sp.status === "inactive") query = query.eq("is_active", false);
   else if (sp.status !== "all" && !inSwipe) query = query.eq("is_active", true);
   if (sp.brand) query = query.eq("page_id", sp.brand);
+  // Jamais de carte « Visuel à venir » : une pub apparaît quand son visuel est prêt (sauf dans tes dossiers)
+  if (!inSwipe) query = query.not("media_url", "is", null);
 
   const perf = list(sp, "perf").map(Number).filter((n) => n >= 1 && n <= 5);
   if (perf.length) query = query.in("stars", perf);
@@ -110,7 +112,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<Sea
     const { data: one } = await db().from("ads_scored").select("*").eq("id", sp.ad).maybeSingle();
     selected = (one as ScoredAd) ?? null;
     if (selected?.category) {
-      let sim = db().from("ads_scored").select("*").eq("is_active", true).eq("category", selected.category).neq("id", selected.id);
+      let sim = db().from("ads_scored").select("*").eq("is_active", true).not("media_url", "is", null).eq("category", selected.category).neq("id", selected.id);
       if (selected.page_id) sim = sim.neq("page_id", selected.page_id);
       const { data: s } = await sim.order("eu_total_reach", { ascending: false, nullsFirst: false }).limit(4);
       similar = (s ?? []) as ScoredAd[];
