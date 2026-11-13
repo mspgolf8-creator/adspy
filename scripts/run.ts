@@ -29,7 +29,10 @@ async function main() {
     const { cleanup } = await import("../src/lib/cleanup");
     await cleanup().catch((e) => console.log("✗ ménage :", errMsg(e)));
   }
-  if (task === "alleger") await alleger();
+  if (task === "alleger") {
+    const { alleger } = await import("../src/lib/alleger");
+    await alleger().catch((e) => console.log("✗ ménage :", errMsg(e)));
+  }
   if (["collect", "us", "brands", "stats", "alleger", "daily"].includes(task)) await refreshStats();
   if (task === "classify" || task === "daily") {
     console.log("Classement des pubs…");
@@ -54,26 +57,6 @@ async function main() {
     console.log("Usage : npm run collect | us | brands | classify | media | pages | stats | cleanup | daily");
     process.exitCode = 1;
   }
-}
-
-/** Ménage des grosses marques, quelques marques à la fois (fonction SQL alleger_marques, migration 009). */
-async function alleger() {
-  const { db } = await import("../src/lib/supabase");
-  let total = 0, fails = 0;
-  for (;;) {
-    const { data, error } = await db().rpc("alleger_marques", { n: 15 });
-    if (error) {
-      console.log("✗ ménage :", error.message);
-      if (++fails >= 5) return;
-      await new Promise((r) => setTimeout(r, 30000));
-      continue;
-    }
-    fails = 0;
-    if (!data) break;
-    total += data;
-    if (total % 75 === 0 || data < 15) console.log(`  … ${total} marques allégées`);
-  }
-  console.log(`✓ ménage : ${total} marques allégées`);
 }
 
 /** Étoiles, rang dans la marque, usage des créas (fonction SQL refresh_ad_stats). */
