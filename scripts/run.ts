@@ -1,4 +1,4 @@
-// Usage : npm run collect | us | brands | classify | media | pages | stats | daily (= tout)
+// Usage : npm run collect | us | brands | alleger | classify | media | pages | stats | daily (= tout)
 import { config } from "dotenv";
 config({ path: ".env.local" });
 
@@ -29,7 +29,8 @@ async function main() {
     const { cleanup } = await import("../src/lib/cleanup");
     await cleanup().catch((e) => console.log("✗ ménage :", errMsg(e)));
   }
-  if (["collect", "us", "brands", "stats", "daily"].includes(task)) await refreshStats();
+  if (task === "alleger") await alleger();
+  if (["collect", "us", "brands", "stats", "alleger", "daily"].includes(task)) await refreshStats();
   if (task === "classify" || task === "daily") {
     console.log("Classement des pubs…");
     // Un échec ici ne doit pas empêcher les visuels et les pages de passer
@@ -49,10 +50,30 @@ async function main() {
     const { fetchPageTypes } = await import("../src/lib/pages");
     await fetchPageTypes().catch((e) => console.log("✗ types de page :", errMsg(e)));
   }
-  if (!["collect", "us", "brands", "classify", "media", "pages", "stats", "cleanup", "daily"].includes(task)) {
+  if (!["collect", "us", "brands", "classify", "media", "pages", "stats", "cleanup", "alleger", "daily"].includes(task)) {
     console.log("Usage : npm run collect | us | brands | classify | media | pages | stats | cleanup | daily");
     process.exitCode = 1;
   }
+}
+
+/** Ménage des grosses marques, quelques marques à la fois (fonction SQL alleger_marques, migration 009). */
+async function alleger() {
+  const { db } = await import("../src/lib/supabase");
+  let total = 0, fails = 0;
+  for (;;) {
+    const { data, error } = await db().rpc("alleger_marques", { n: 15 });
+    if (error) {
+      console.log("✗ ménage :", error.message);
+      if (++fails >= 5) return;
+      await new Promise((r) => setTimeout(r, 30000));
+      continue;
+    }
+    fails = 0;
+    if (!data) break;
+    total += data;
+    if (total % 75 === 0 || data < 15) console.log(`  … ${total} marques allégées`);
+  }
+  console.log(`✓ ménage : ${total} marques allégées`);
 }
 
 /** Étoiles, rang dans la marque, usage des créas (fonction SQL refresh_ad_stats). */
