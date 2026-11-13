@@ -1,14 +1,42 @@
--- Migration 009 : alléger la base (rester sous 500 Mo, plan gratuit)
+-- Migration 009 : alléger la base (plan gratuit de Supabase)
 -- Les grosses marques (100+ pubs) : on garde seulement leurs pubs qui peuvent passer le pré-filtre
 -- (3 étoiles et +, 7 jours et +). Leur rang dans la marque est calculé sur TOUTES leurs pubs (ext_pct).
--- Tes dossiers ne sont jamais touchés.
--- ÉTAPE A : coller tout ce bloc dans Supabase > SQL Editor > Run (rapide : ça crée seulement les outils).
--- Le ménage lui-même est fait ensuite par le robot GitHub (tâche « alleger »), marque par marque.
+-- Tes dossiers et ton Swipe File ne sont jamais touchés.
+--
+-- La base est en lecture seule (disque plein) : on fait le ménage en 3 étapes,
+-- CHACUNE DANS SON PROPRE ONGLET du SQL Editor (bouton + New), une après l'autre.
+
+-- ================= ÉTAPE 1 (seule dans un onglet) =================
+-- Récupère l'espace laissé par la tentative ratée.
+vacuum full ads;
+
+-- ================= ÉTAPE 2 (tout ce bloc, dans un nouvel onglet) =================
+set session characteristics as transaction read write;
+set statement_timeout = '20min';
 
 alter table ads add column if not exists ext_pct real;
 
--- 1 et 2, par petits paquets de marques (le robot l'appelle en boucle, dans le cloud) :
--- rang réel dans la marque, puis on efface les pubs qui ne pourront jamais passer le pré-filtre.
+-- Rang réel de chaque pub dans sa marque (calculé AVANT d'effacer, sur toutes ses pubs)
+create temp table r as
+select a.id,
+  percent_rank() over (partition by a.page_id order by coalesce(a.eu_total_reach, 0) desc,
+    coalesce(a.delivery_start, a.first_seen_at) asc) as pct,
+  greatest(1, extract(day from (now() - coalesce(a.delivery_start, a.first_seen_at)))) as days
+from ads a
+join brands b on b.page_id = a.page_id and b.total_active >= 100
+where a.is_active and a.source = 'api';
+
+-- On efface celles qui ne pourront jamais passer le pré-filtre
+delete from ads a using r
+where a.id = r.id
+  and not a.saved
+  and not exists (select 1 from folder_ads f where f.ad_id = a.id)
+  and not (r.days >= 14 or (r.days >= 7 and r.pct <= 0.5));
+
+-- On garde le rang réel des pubs qui restent
+update ads a set ext_pct = r.pct from r where a.id = r.id;
+
+-- Outil pour le robot (même ménage, quelques marques à la fois)
 create or replace function alleger_marques(n int default 15) returns int
 language plpgsql set statement_timeout = '120s' as $$
 declare k int;
@@ -81,9 +109,8 @@ begin
   return n;
 end $$;
 
-
 notify pgrst, 'reload schema';
 
--- ÉTAPE B : une fois le ménage du robot terminé, dans un NOUVEL onglet du SQL Editor, lancer seule cette ligne
--- (elle redonne l'espace libéré ; ça peut prendre quelques minutes) :
+-- ================= ÉTAPE 3 (seule dans un nouvel onglet) =================
+-- Redonne l'espace des pubs effacées.
 -- vacuum full ads;
