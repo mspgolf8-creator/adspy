@@ -88,16 +88,19 @@ async function checkApi(list: Candidate[], log: Log) {
       if (++errorsInRow >= 10) throw new Error(`10 erreurs de suite (${errMsg(e)}) après ${done} marques`);
       continue;
     }
-    // Grosse marque : on garde toutes ses pubs (les étoiles se calculent alors sur la marque entière)
+    // Grosse marque : on calcule le rang de chaque pub sur TOUTE la marque, puis on garde seulement
+    // celles qui peuvent passer le pré-filtre (base légère, plan gratuit de Supabase)
     if (ads.length >= BIG) {
       big++;
-      for (let i = 0; i < ads.length; i += 200) saved += await upsertBatch(ads.slice(i, i + 200), null, now);
+      const best = keepBest(ads);
+      const keep = ads.filter((a) => best.has(a.id));
+      for (let i = 0; i < keep.length; i += 200) saved += await upsertBatch(keep.slice(i, i + 200), null, now, best);
     }
     await saveBrand(c, ads.length);
     done++;
     if (done % 100 === 0) log(`  … ${done}/${list.length} marques Europe vérifiées`);
   }
-  log(`✓ marques Europe : ${done} vérifiées (${skipped} sautées), ${big} avec ${BIG}+ pubs actives → ${saved} pubs ajoutées/mises à jour`);
+  log(`✓ marques Europe : ${done} vérifiées (${skipped} sautées), ${big} avec ${BIG}+ pubs actives → ${saved} pubs gardées (3★+ possibles, 7 j+)`);
 }
 
 /* ---------- US / Canada : bibliothèque publique ---------- */
@@ -198,4 +201,23 @@ async function fetchBrandAds(pageId: string, cfg: ReturnType<typeof metaConfig>)
     }
   }
   throw lastErr;
+}
+
+/**
+ * Rang de chaque pub dans sa marque (0 = la plus vue), comme refresh_ad_stats :
+ * portée décroissante, puis la plus ancienne d'abord. Garde les pubs qui auront 3 étoiles et +
+ * et 7 jours et + (14 j+, ou 7 j+ dans la meilleure moitié de la marque).
+ */
+function keepBest(ads: MetaAd[]): Map<string, { ext_pct: number }> {
+  const now = Date.now();
+  const days = (a: MetaAd) => Math.max(1, Math.floor((now - Date.parse(a.ad_delivery_start_time ?? new Date().toISOString())) / 86400_000));
+  const sorted = [...ads].sort((a, b) => (b.eu_total_reach ?? 0) - (a.eu_total_reach ?? 0) || days(b) - days(a));
+  const out = new Map<string, { ext_pct: number }>();
+  const n = sorted.length;
+  sorted.forEach((a, i) => {
+    const pct = n > 1 ? i / (n - 1) : 0;
+    const d = days(a);
+    if (d >= 14 || (d >= 7 && pct <= 0.5)) out.set(a.id, { ext_pct: pct });
+  });
+  return out;
 }
