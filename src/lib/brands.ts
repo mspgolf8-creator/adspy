@@ -75,30 +75,18 @@ async function checkApi(list: Candidate[], log: Log) {
   if (!list.length) return;
   const cfg = metaConfig();
   const now = new Date().toISOString();
-  let big = 0, saved = 0, done = 0;
+  let big = 0, saved = 0, done = 0, skipped = 0, errorsInRow = 0;
   for (const c of list) {
-    const ads: MetaAd[] = [];
-    let url: string | undefined = `https://graph.facebook.com/${cfg.version}/ads_archive?` + new URLSearchParams({
-      search_page_ids: JSON.stringify([c.page_id]),
-      ad_type: "ALL",
-      ad_active_status: "ACTIVE",
-      ad_reached_countries: JSON.stringify(cfg.countries),
-      fields: FIELDS,
-      limit: "250",
-      access_token: cfg.token,
-    });
-    while (url && ads.length < MAX_ADS) {
-      const res = await fetchWithRetry(url);
-      const json = (await res.json()) as MetaPage;
-      if (json.error) {
-        const code = /blocked/i.test(json.error.message) ? 4 : json.error.code;
-        throw new MetaApiError(`${json.error.message} (après ${done} marques)`, code);
-      }
-      ads.push(...(json.data ?? []));
-      url = json.paging?.next;
-      const usage = maxUsagePct(res.headers.get("x-business-use-case-usage"));
-      if (usage >= 75) throw new MetaApiError(`Quota Meta à ${usage} %, on reprend demain (après ${done} marques)`, 4);
-      await new Promise((r) => setTimeout(r, usage >= 40 ? 5000 : 1200));
+    let ads: MetaAd[];
+    try {
+      ads = await fetchBrandAds(c.page_id, cfg);
+      errorsInRow = 0;
+    } catch (e) {
+      // Token invalide ou quota : inutile de continuer. Autre erreur de Meta : on saute cette marque.
+      if (e instanceof MetaApiError && (e.isAuth || e.isRateLimit)) throw new MetaApiError(`${e.message} (après ${done} marques)`, e.code);
+      skipped++;
+      if (++errorsInRow >= 10) throw new Error(`10 erreurs de suite (${errMsg(e)}) après ${done} marques`);
+      continue;
     }
     // Grosse marque : on garde toutes ses pubs (les étoiles se calculent alors sur la marque entière)
     if (ads.length >= BIG) {
@@ -109,7 +97,7 @@ async function checkApi(list: Candidate[], log: Log) {
     done++;
     if (done % 100 === 0) log(`  … ${done}/${list.length} marques Europe vérifiées`);
   }
-  log(`✓ marques Europe : ${done} vérifiées, ${big} avec ${BIG}+ pubs actives → ${saved} pubs ajoutées/mises à jour`);
+  log(`✓ marques Europe : ${done} vérifiées (${skipped} sautées), ${big} avec ${BIG}+ pubs actives → ${saved} pubs ajoutées/mises à jour`);
 }
 
 /* ---------- US / Canada : bibliothèque publique ---------- */
@@ -169,4 +157,45 @@ async function libraryCount(ctx: BrowserContext, pageId: string, country: string
   } finally {
     await page.close().catch(() => {});
   }
+}
+
+/**
+ * Toutes les pubs actives d'une marque (Europe). Meta renvoie parfois « An unknown error occurred »
+ * sur les grosses pages : on réessaie avec des pages plus petites avant d'abandonner.
+ */
+async function fetchBrandAds(pageId: string, cfg: ReturnType<typeof metaConfig>): Promise<MetaAd[]> {
+  let lastErr: unknown;
+  for (const limit of [250, 100, 25]) {
+    const ads: MetaAd[] = [];
+    let url: string | undefined = `https://graph.facebook.com/${cfg.version}/ads_archive?` + new URLSearchParams({
+      search_page_ids: JSON.stringify([pageId]),
+      ad_type: "ALL",
+      ad_active_status: "ACTIVE",
+      ad_reached_countries: JSON.stringify(cfg.countries),
+      fields: FIELDS,
+      limit: String(limit),
+      access_token: cfg.token,
+    });
+    try {
+      while (url && ads.length < MAX_ADS) {
+        const res = await fetchWithRetry(url);
+        const json = (await res.json()) as MetaPage;
+        if (json.error) {
+          const code = /blocked/i.test(json.error.message) ? 4 : json.error.code;
+          throw new MetaApiError(json.error.message, code);
+        }
+        ads.push(...(json.data ?? []));
+        url = json.paging?.next;
+        const usage = maxUsagePct(res.headers.get("x-business-use-case-usage"));
+        if (usage >= 75) throw new MetaApiError(`Quota Meta à ${usage} %, on reprend demain`, 4);
+        await new Promise((r) => setTimeout(r, usage >= 40 ? 5000 : 1200));
+      }
+      return ads;
+    } catch (e) {
+      if (e instanceof MetaApiError && (e.isAuth || e.isRateLimit)) throw e;
+      lastErr = e;
+      await new Promise((r) => setTimeout(r, 5000));
+    }
+  }
+  throw lastErr;
 }
