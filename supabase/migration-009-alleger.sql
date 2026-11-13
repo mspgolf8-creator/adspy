@@ -7,8 +7,8 @@
 -- CHACUNE DANS SON PROPRE ONGLET du SQL Editor (bouton + New), une après l'autre.
 
 -- ================= ÉTAPE 1 (seule dans un onglet) =================
--- Récupère l'espace laissé par la tentative ratée.
-vacuum full ads;
+-- Récupère l'espace laissé par la tentative ratée (vacuum simple : pas besoin d'espace libre).
+vacuum ads;
 
 -- ================= ÉTAPE 2 (tout ce bloc, dans un nouvel onglet) =================
 set session characteristics as transaction read write;
